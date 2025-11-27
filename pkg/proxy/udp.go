@@ -132,6 +132,11 @@ func relayUDPReplies(session *udpSession, responder net.PacketConn, logger *log.
 		_ = session.remoteConn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		n, err := session.remoteConn.Read(replyBuf)
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			// The remote can stay silent for a while, but the client may still be active.
+			// Keep listening as long as the session shows recent activity so replies are not dropped.
+			if time.Since(session.lastActive) < 60*time.Second {
+				continue
+			}
 			return
 		}
 		if err != nil {
