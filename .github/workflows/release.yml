@@ -1,0 +1,71 @@
+name: Cross-platform release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    if: contains(github.event.head_commit.message, 'stable release')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows, freebsd, openbsd]
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build binaries
+        run: |
+          BIN_NAME=chicha-tcp-proxy
+          OUTPUT_DIR=dist/${{ matrix.goos }}-${{ matrix.goarch }}
+          mkdir -p "$OUTPUT_DIR"
+          if [ "${{ matrix.goos }}" = "windows" ]; then BIN_NAME+=".exe"; fi
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-X main.version=${{ github.sha }}" -o "$OUTPUT_DIR/$BIN_NAME"
+
+      - name: Archive binary
+        run: |
+          ARCHIVE_NAME=chicha-tcp-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          tar -czf "$ARCHIVE_NAME" -C dist/${{ matrix.goos }}-${{ matrix.goarch }} .
+          mkdir -p uploads
+          mv "$ARCHIVE_NAME" uploads/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chicha-tcp-proxy-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: uploads/chicha-tcp-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'stable release')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: release-${{ github.run_id }}
+          name: Chicha TCP Proxy stable release ${{ github.run_id }}
+          draft: false
+          prerelease: false
+          files: |
+            release-files/**/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

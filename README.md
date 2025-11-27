@@ -32,13 +32,19 @@ Chicha TCP Proxy is a lightweight **Layer 2 (L2) proxy** written in **Go**, desi
 
 ### **Quick Start Examples**
 
-#### **Single Port Example**
+#### **Single Port Example (TCP)**
 Forward traffic from local port `80` to remote `192.168.0.1:80`:
 ```bash
 sudo chicha-tcp-proxy -routes "80:192.168.0.1:80" -log /var/log/chicha-tcp-proxy.log
 ```
 
-#### **Multiple Ports Example**
+#### **UDP Example**
+Forward UDP datagrams from local port `123` to remote `203.0.113.10:123` (for example, forwarding WireGuard or NTP traffic):
+```bash
+sudo chicha-tcp-proxy -udp-routes "123:203.0.113.10:123" -log /var/log/chicha-tcp-proxy.log
+```
+
+#### **Multiple Ports Example (TCP)**
 Forward multiple ports simultaneously:
 ```bash
 sudo chicha-tcp-proxy -routes "80:192.168.0.1:80,443:192.168.0.1:443,22:192.168.0.2:22" -log /var/log/chicha-tcp-proxy.log
@@ -48,6 +54,7 @@ In this example:
 - Port `80` on the local machine forwards to `192.168.0.1:80`.
 - Port `443` forwards to `192.168.0.1:443`.
 - Port `22` forwards to `192.168.0.2:22`.
+- A UDP example can be combined by adding `-udp-routes` alongside `-routes` when you need both protocols.
 
 ---
 
