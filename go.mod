@@ -1,3 +1,3 @@
-module github.com/matveynator/chicha-tcp-proxy
+module github.com/matveynator/chicha-ip-proxy
 
 go 1.21

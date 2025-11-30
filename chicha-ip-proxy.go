@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/matveynator/chicha-tcp-proxy/pkg/config"
-	"github.com/matveynator/chicha-tcp-proxy/pkg/logging"
-	"github.com/matveynator/chicha-tcp-proxy/pkg/proxy"
+	"github.com/matveynator/chicha-ip-proxy/pkg/config"
+	"github.com/matveynator/chicha-ip-proxy/pkg/logging"
+	"github.com/matveynator/chicha-ip-proxy/pkg/proxy"
 )
 
 // version holds the current version of the proxy application.
@@ -21,14 +21,14 @@ var version = "dev"
 func main() {
 	routesFlag := flag.String("routes", "", "Comma-separated list of TCP routes in the format LOCALPORT:REMOTEIP:REMOTEPORT")
 	udpRoutesFlag := flag.String("udp-routes", "", "Comma-separated list of UDP routes in the format LOCALPORT:REMOTEIP:REMOTEPORT")
-	logFile := flag.String("log", "chicha-tcp-proxy.log", "Path to the log file")
+	logFile := flag.String("log", "chicha-ip-proxy.log", "Path to the log file")
 	rotationFrequency := flag.Duration("rotation", 24*time.Hour, "Log rotation frequency (e.g. 24h, 1h, etc.)")
 	versionFlag := flag.Bool("version", false, "Print the version of the proxy and exit")
 
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Printf("chicha-tcp-proxy version %s\n", version)
+		fmt.Printf("chicha-ip-proxy version %s\n", version)
 		return
 	}
 
@@ -45,7 +45,7 @@ func main() {
 		log.Fatal("Error: At least one of -routes or -udp-routes must be provided.")
 	}
 
-	fmt.Println("========== CHICHA TCP PROXY ==========")
+	fmt.Println("========== CHICHA IP PROXY ==========")
 	fmt.Println("TCP Routes:")
 	for _, route := range tcpRoutes {
 		fmt.Printf("  LocalPort=%s -> RemoteIP=%s RemotePort=%s\n", route.LocalPort, route.RemoteIP, route.RemotePort)
@@ -63,7 +63,7 @@ func main() {
 		log.Fatalf("Error setting up logger: %v", err)
 	}
 
-	log.Printf("Starting chicha-tcp-proxy version %s", version)
+	log.Printf("Starting chicha-ip-proxy version %s", version)
 
 	numCPUs := runtime.NumCPU()
 	runtime.GOMAXPROCS(numCPUs)

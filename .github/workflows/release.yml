@@ -25,7 +25,7 @@ jobs:
 
       - name: Build binaries
         run: |
-          BIN_NAME=chicha-tcp-proxy
+          BIN_NAME=chicha-ip-proxy
           OUTPUT_DIR=dist/${{ matrix.goos }}-${{ matrix.goarch }}
           mkdir -p "$OUTPUT_DIR"
           if [ "${{ matrix.goos }}" = "windows" ]; then BIN_NAME+=".exe"; fi
@@ -33,7 +33,7 @@ jobs:
 
       - name: Archive binary
         run: |
-          ARCHIVE_NAME=chicha-tcp-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          ARCHIVE_NAME=chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
           tar -czf "$ARCHIVE_NAME" -C dist/${{ matrix.goos }}-${{ matrix.goarch }} .
           mkdir -p uploads
           mv "$ARCHIVE_NAME" uploads/
@@ -41,8 +41,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: chicha-tcp-proxy-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: uploads/chicha-tcp-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          name: chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: uploads/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
 
   release:
     needs: build
@@ -62,7 +62,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: release-${{ github.run_id }}
-          name: Chicha TCP Proxy stable release ${{ github.run_id }}
+          name: Chicha IP Proxy stable release ${{ github.run_id }}
           draft: false
           prerelease: false
           files: |
