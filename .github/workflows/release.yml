@@ -9,6 +9,12 @@ on:
       - master
   workflow_dispatch: {}
 
+# Grant write access to release assets so publishing succeeds when the workflow
+# tags a stable build. GitHub defaults to read-only tokens, which prevents
+# creating releases even though the rest of the pipeline succeeds.
+permissions:
+  contents: write
+
 jobs:
   build:
     if: contains(github.event.head_commit.message, 'stable release')
