@@ -41,18 +41,11 @@ jobs:
           mkdir -p dist
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o "dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
 
-      - name: Archive artifact
-        run: |
-          set -euo pipefail
-          ext=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
-          tar -czf "dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" -C dist "chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          path: dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   release:
     if: contains(github.event.head_commit.message, 'stable release')
@@ -65,18 +58,18 @@ jobs:
         with:
           path: dist
 
-      - name: Collect archives
+      - name: Collect binaries
         run: |
           set -euo pipefail
           mkdir -p upload
-          find dist -name "*.tar.gz" -maxdepth 3 -print -exec mv {} upload/ \;
+          find dist -maxdepth 3 -type f -name "chicha-ip-proxy-*" -print -exec mv {} upload/ \;
 
       - name: Publish release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: stable-${{ github.run_number }}
           name: Automated stable release
-          files: upload/*.tar.gz
+          files: upload/chicha-ip-proxy-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
