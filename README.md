@@ -10,7 +10,7 @@ Chicha IP Proxy is a lightweight **Layer 2 (L2) proxy** written in **Go**, desig
 ### **Why Choose Chicha IP Proxy?**
 - **Blazing Fast**: Written in Go, it fully utilizes all CPU cores for optimal performance.
 - **Simple to Use**: One command to forward traffic—no complex configurations.
-- **Log Rotation**: Automatically compresses logs into `.gz` format daily.
+- **Log Rotation**: Rotates logs daily while keeping them uncompressed for easy inspection.
 - **Cross-Platform**: Compatible with all major operating systems and architectures.
 - **Efficient**: Low resource usage even under heavy load.
 
@@ -94,7 +94,7 @@ In this example:
 - **Go-Powered Performance**: Written in Go, ensuring speed and reliability.
 - **Multi-Port Support**: Easily forward traffic for one or multiple ports.
 - **No Complexity**: Simple commands, no bloated configs.
-- **Ready for Production**: Log rotation, compression, and systemd integration make it production-ready.
+- **Ready for Production**: Log rotation with readable archives and systemd integration make it production-ready.
 
 ---
 ### **Benchmarks**
