@@ -30,7 +30,7 @@ Chicha IP Proxy is a lightweight **Layer 2 (L2) proxy** written in **Go**, desig
 
 ---
 
-### **Quick Start Examples**
+### **Quick Start Examples** (see more in `docs/wiki.md`)
 
 #### **Single Port Example (TCP)**
 Forward traffic from local port `80` to remote `192.168.0.1:80`:
