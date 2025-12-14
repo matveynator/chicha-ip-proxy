@@ -1,10 +1,13 @@
-name: Cross-platform release
+# Workflow builds cross-platform binaries and publishes a GitHub release when commits include "stable release".
+# Keeping the matrix explicit makes future platform additions easy to reason about.
+name: cross-platform-release
 
 on:
   push:
     branches:
       - main
       - master
+  workflow_dispatch: {}
 
 jobs:
   build:
@@ -14,8 +17,9 @@ jobs:
       matrix:
         goos: [linux, darwin, windows, freebsd, openbsd]
         goarch: [amd64, arm64]
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Go
@@ -23,49 +27,50 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build binaries
+      - name: Build binary
         run: |
-          BIN_NAME=chicha-ip-proxy
-          OUTPUT_DIR=dist/${{ matrix.goos }}-${{ matrix.goarch }}
-          mkdir -p "$OUTPUT_DIR"
-          if [ "${{ matrix.goos }}" = "windows" ]; then BIN_NAME+=".exe"; fi
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-X main.version=${{ github.sha }}" -o "$OUTPUT_DIR/$BIN_NAME"
+          set -euo pipefail
+          ext=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
+          mkdir -p dist
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o "dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
 
-      - name: Archive binary
+      - name: Archive artifact
         run: |
-          ARCHIVE_NAME=chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-          tar -czf "$ARCHIVE_NAME" -C dist/${{ matrix.goos }}-${{ matrix.goarch }} .
-          mkdir -p uploads
-          mv "$ARCHIVE_NAME" uploads/
+          set -euo pipefail
+          ext=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
+          tar -czf "dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" -C dist "chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: uploads/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          path: dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
 
   release:
-    needs: build
-    runs-on: ubuntu-latest
     if: contains(github.event.head_commit.message, 'stable release')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    runs-on: ubuntu-latest
+    needs: build
 
-      - name: Download artifacts
+    steps:
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release-files
+          path: dist
 
-      - name: Create release
-        id: create_release
+      - name: Collect archives
+        run: |
+          set -euo pipefail
+          mkdir -p upload
+          find dist -name "*.tar.gz" -maxdepth 3 -print -exec mv {} upload/ \;
+
+      - name: Publish release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: release-${{ github.run_id }}
-          name: Chicha IP Proxy stable release ${{ github.run_id }}
-          draft: false
-          prerelease: false
-          files: |
-            release-files/**/*.tar.gz
+          tag_name: stable-${{ github.run_number }}
+          name: Automated stable release
+          files: upload/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

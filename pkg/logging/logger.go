@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+// DefaultMaxSizeBytes defines the size threshold for log rotation.
+// Keeping it exported lets the caller opt into consistent sizing without redefining the constant.
+const DefaultMaxSizeBytes int64 = 100 * 1024 * 1024
+
 // SetupLogger opens the target file and returns a standard logger alongside the underlying file handle.
 // Returning the file lets the caller manage its lifecycle without hidden global state.
 func SetupLogger(logFile string) (*log.Logger, *os.File, error) {
@@ -25,44 +29,86 @@ func SetupLogger(logFile string) (*log.Logger, *os.File, error) {
 
 // RotateLogs performs periodic rotation and compression.
 // Running in its own goroutine keeps the rest of the application non-blocking.
-func RotateLogs(logFile string, file *os.File, logger *log.Logger, frequency time.Duration) {
+func RotateLogs(logFile string, file *os.File, logger *log.Logger, frequency time.Duration, maxSizeBytes int64) {
+	if maxSizeBytes <= 0 {
+		maxSizeBytes = DefaultMaxSizeBytes
+	}
+
+	rotationTicker := time.NewTicker(frequency)
+	sizeTicker := time.NewTicker(time.Minute)
+	defer rotationTicker.Stop()
+	defer sizeTicker.Stop()
+
+	currentFile := file
+
 	for {
-		time.Sleep(frequency)
-
-		file.Close()
-
-		rotatedFile := logFile + "." + time.Now().Format("2006-01-02")
-		if err := os.Rename(logFile, rotatedFile); err != nil {
-			logger.Printf("Error rotating logs: %v", err)
-
-			newFile, err2 := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err2 != nil {
-				logger.Fatalf("Failed to reopen log file after rotation error: %v", err2)
+		select {
+		case <-rotationTicker.C:
+			nextFile, err := rotateOnce(logFile, currentFile, logger)
+			if err == nil {
+				currentFile = nextFile
 			}
 
-			file = newFile
-			logger.SetOutput(file)
-			continue
-		}
+		case <-sizeTicker.C:
+			info, err := currentFile.Stat()
+			if err != nil {
+				logger.Printf("Error stating log file for rotation: %v", err)
+				continue
+			}
 
-		newFile, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			logger.Fatalf("Failed to create new log file after rotation: %v", err)
-		}
-		file = newFile
-		logger.SetOutput(file)
-
-		logger.Println("Log file rotated successfully, now compressing old log...")
-
-		if err := compressFile(rotatedFile); err != nil {
-			logger.Printf("Error compressing rotated file: %v", err)
-		} else {
-			logger.Printf("Compression successful: %s.gz", rotatedFile)
-			if err := os.Remove(rotatedFile); err != nil {
-				logger.Printf("Error removing uncompressed rotated file: %v", err)
+			if info.Size() >= maxSizeBytes {
+				nextFile, err := rotateOnce(logFile, currentFile, logger)
+				if err == nil {
+					currentFile = nextFile
+				}
 			}
 		}
 	}
+}
+
+// rotateOnce handles closing, renaming, compressing, and reopening the log file.
+// Returning the newly opened file keeps the caller in control of the active handle.
+func rotateOnce(logFile string, currentFile *os.File, logger *log.Logger) (*os.File, error) {
+	if err := currentFile.Sync(); err != nil {
+		logger.Printf("Error syncing log file before rotation: %v", err)
+	}
+	if err := currentFile.Close(); err != nil {
+		logger.Printf("Error closing log file before rotation: %v", err)
+	}
+
+	rotatedFile := logFile + "." + time.Now().Format("2006-01-02")
+	if err := os.Rename(logFile, rotatedFile); err != nil {
+		logger.Printf("Error rotating logs: %v", err)
+
+		reopened, reopenErr := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if reopenErr != nil {
+			logger.Fatalf("Failed to reopen log file after rotation error: %v", reopenErr)
+			return nil, reopenErr
+		}
+
+		logger.SetOutput(reopened)
+		return reopened, err
+	}
+
+	newFile, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		logger.Fatalf("Failed to create new log file after rotation: %v", err)
+		return nil, err
+	}
+	logger.SetOutput(newFile)
+
+	logger.Println("Log file rotated successfully, now compressing old log...")
+
+	if err := compressFile(rotatedFile); err != nil {
+		logger.Printf("Error compressing rotated file: %v", err)
+	} else {
+		logger.Printf("Compression successful: %s.gz", rotatedFile)
+		if err := os.Remove(rotatedFile); err != nil {
+			logger.Printf("Error removing uncompressed rotated file: %v", err)
+		}
+	}
+
+	return newFile, nil
 }
 
 // compressFile compresses the provided file path with gzip.
