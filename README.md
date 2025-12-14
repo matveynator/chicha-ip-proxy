@@ -16,79 +16,125 @@ Chicha IP Proxy is a lightweight **Layer 2 (L2) proxy** written in **Go**, desig
 
 ---
 
-### **Download and Install**
-1. **Download the Binary**:  
-   Choose your platform and architecture from the links below:
-   - [Linux (x86_64)](http://files.zabiyaka.net/chicha-ip-proxy/latest/no-gui/linux/amd64/chicha-ip-proxy)
-   - [All Platforms](http://files.zabiyaka.net/chicha-ip-proxy/latest/no-gui/)
+### **Quick Setup / Краткий запуск**
 
-2. **Install the Binary**:  
-   For Linux (x86_64), download and install with:
-   ```bash
-   sudo curl -o /usr/local/bin/chicha-ip-proxy http://files.zabiyaka.net/chicha-ip-proxy/latest/no-gui/linux/amd64/chicha-ip-proxy && sudo chmod +x /usr/local/bin/chicha-ip-proxy
-   ```
+#### **English — minimal auto-setup**
+The built-in wizard does the heavy lifting (systemd unit, enable, start, log tail). You only download the binary and run it. Replace `203.0.113.44` with your origin.
+```bash
+curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 -o chicha-ip-proxy
+sudo install -m 0755 chicha-ip-proxy /usr/local/bin/chicha-ip-proxy
+sudo /usr/local/bin/chicha-ip-proxy
+```
+Short transcript so you know what to expect:
+```
+root@mirror:~# /usr/local/bin/chicha-ip-proxy
+No routes provided via flags. Starting interactive configuration...
+Enter target IP address to proxy to: 203.0.113.44
+Enter protocols (comma separated, supported: tcp, udp): tcp
+Enter local TCP ports (comma separated): 80, 443
+Planned log file: /var/log/chicha-ip-proxy-tcp-443-80.log
+Planned systemd service name: chicha-ip-proxy-tcp-443-80.service
+Would you like to create a systemd service 'chicha-ip-proxy-tcp-443-80.service'? (y/N): y
+Enable the service so it starts on boot? (y/N): y
+Start the service now? (y/N): y
+Follow the log file now? (y/N): y
+========== CHICHA IP PROXY ==========
+TCP Routes:
+  LocalPort=443 -> RemoteIP=203.0.113.44 RemotePort=443
+  LocalPort=80 -> RemoteIP=203.0.113.44 RemotePort=80
+Log file: /var/log/chicha-ip-proxy-tcp-443-80.log
+Log rotation frequency: 24h0m0s
+======================================
+```
+
+#### **English — quick flags instead of wizard**
+- Mirror a site over TCP:
+  ```bash
+  sudo chicha-ip-proxy -routes "80:198.51.100.5:80,443:198.51.100.5:443" -log /var/log/chicha-ip-proxy.log
+  ```
+- Forward WireGuard over UDP:
+  ```bash
+  sudo chicha-ip-proxy -udp-routes "51820:198.51.100.20:51820" -log /var/log/chicha-ip-proxy.log
+  ```
+
+Daily log rotation keeps files uncompressed for fast inspection.
 
 ---
 
-### **Quick Start Examples** (see more in `docs/wiki.md`)
-
-#### **Single Port Example (TCP)**
-Forward traffic from local port `80` to remote `192.168.0.1:80`:
+#### **Русский — минимальная автонастройка**
+Мастер сам создаёт unit, включает, запускает и показывает лог. Вам нужно только скачать бинарник и запустить его. Замените `203.0.113.44` на ваш источник.
 ```bash
-sudo chicha-ip-proxy -routes "80:192.168.0.1:80" -log /var/log/chicha-ip-proxy.log
+curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 -o chicha-ip-proxy
+sudo install -m 0755 chicha-ip-proxy /usr/local/bin/chicha-ip-proxy
+sudo /usr/local/bin/chicha-ip-proxy
+```
+Короткий диалог мастера:
+```
+root@mirror:~# /usr/local/bin/chicha-ip-proxy
+No routes provided via flags. Starting interactive configuration...
+Enter target IP address to proxy to: 203.0.113.44
+Enter protocols (comma separated, supported: tcp, udp): tcp
+Enter local TCP ports (comma separated): 80, 443
+Planned log file: /var/log/chicha-ip-proxy-tcp-443-80.log
+Planned systemd service name: chicha-ip-proxy-tcp-443-80.service
+Would you like to create a systemd service 'chicha-ip-proxy-tcp-443-80.service'? (y/N): y
+Enable the service so it starts on boot? (y/N): y
+Start the service now? (y/N): y
+Follow the log file now? (y/N): y
+========== CHICHA IP PROXY ==========
+TCP Routes:
+  LocalPort=443 -> RemoteIP=203.0.113.44 RemotePort=443
+  LocalPort=80 -> RemoteIP=203.0.113.44 RemotePort=80
+Log file: /var/log/chicha-ip-proxy-tcp-443-80.log
+Log rotation frequency: 24h0m0s
+======================================
 ```
 
-#### **UDP Example**
-Forward UDP datagrams from local port `123` to remote `203.0.113.10:123` (for example, forwarding WireGuard or NTP traffic):
-```bash
-sudo chicha-ip-proxy -udp-routes "123:203.0.113.10:123" -log /var/log/chicha-ip-proxy.log
-```
+#### **Русский — запуск с флагами вместо мастера**
+- Зеркало сайта по TCP:
+  ```bash
+  sudo chicha-ip-proxy -routes "80:198.51.100.5:80,443:198.51.100.5:443" -log /var/log/chicha-ip-proxy.log
+  ```
+- Проброс WireGuard по UDP:
+  ```bash
+  sudo chicha-ip-proxy -udp-routes "51820:198.51.100.20:51820" -log /var/log/chicha-ip-proxy.log
+  ```
 
-#### **Multiple Ports Example (TCP)**
-Forward multiple ports simultaneously:
-```bash
-sudo chicha-ip-proxy -routes "80:192.168.0.1:80,443:192.168.0.1:443,22:192.168.0.2:22" -log /var/log/chicha-ip-proxy.log
-```
-
-In this example:
-- Port `80` on the local machine forwards to `192.168.0.1:80`.
-- Port `443` forwards to `192.168.0.1:443`.
-- Port `22` forwards to `192.168.0.2:22`.
-- A UDP example can be combined by adding `-udp-routes` alongside `-routes` when you need both protocols.
+Логи ротируются ежедневно без сжатия и остаются удобными для просмотра и поиска.
 
 ---
 
-### **Systemd Autostart Setup**
+### **Command reference / Справка по командам**
 
-1. **Create a Service File**:
-   ```bash
-   sudo mcedit /etc/systemd/system/chicha-ip-proxy.service
-   ```
+```
+chicha-ip-proxy-linux --help
+Usage of chicha-ip-proxy-linux:
+  -log string
+    Path to the log file (default "chicha-ip-proxy.log")
+  -rotation duration
+    Log rotation frequency (e.g. 24h, 1h, etc.) (default 24h0m0s)
+  -routes string
+    Comma-separated list of TCP routes in the format LOCALPORT:REMOTEIP:REMOTEPORT
+  -udp-routes string
+    Comma-separated list of UDP routes in the format LOCALPORT:REMOTEIP:REMOTEPORT
+  -version
+    Print the version of the proxy and exit
+```
 
-2. **Add the Following Content**:
-   ```ini
-   [Unit]
-   Description=Chicha IP Proxy
-   After=network.target
-
-   [Service]
-   ExecStart=/usr/local/bin/chicha-ip-proxy -routes "80:192.168.0.1:80,443:192.168.0.1:443" -log /var/log/chicha-ip-proxy.log
-   Restart=on-failure
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-3. Save and exit `mcedit`.
-
-4. **Enable and Start the Service**:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable chicha-ip-proxy
-   sudo systemctl start chicha-ip-proxy
-   ```
-
----
+```
+chicha-ip-proxy-linux --help
+Подсказка по флагам:
+  -log string
+    Путь к файлу логов (по умолчанию "chicha-ip-proxy.log")
+  -rotation duration
+    Как часто ротировать логи (например 24h, 1h и т.д.) (по умолчанию 24h0m0s)
+  -routes string
+    TCP-маршруты через запятую в виде LOCALPORT:REMOTEIP:REMOTEPORT
+  -udp-routes string
+    UDP-маршруты через запятую в виде LOCALPORT:REMOTEIP:REMOTEPORT
+  -version
+    Показать версию и выйти
+```
 
 ### **Why Chicha IP Proxy?**
 - **Go-Powered Performance**: Written in Go, ensuring speed and reliability.
