@@ -3,9 +3,7 @@
 package logging
 
 import (
-	"compress/gzip"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"time"
@@ -27,7 +25,7 @@ func SetupLogger(logFile string) (*log.Logger, *os.File, error) {
 	return logger, file, nil
 }
 
-// RotateLogs performs periodic rotation and compression.
+// RotateLogs performs periodic rotation and keeps the logs uncompressed.
 // Running in its own goroutine keeps the rest of the application non-blocking.
 func RotateLogs(logFile string, file *os.File, logger *log.Logger, frequency time.Duration, maxSizeBytes int64) {
 	if maxSizeBytes <= 0 {
@@ -66,8 +64,9 @@ func RotateLogs(logFile string, file *os.File, logger *log.Logger, frequency tim
 	}
 }
 
-// rotateOnce handles closing, renaming, compressing, and reopening the log file.
-// Returning the newly opened file keeps the caller in control of the active handle.
+// rotateOnce handles closing, renaming, and reopening the log file without compression.
+// Returning the newly opened file keeps the caller in control of the active handle while
+// leaving the rotated file intact for external tools that may prefer raw text.
 func rotateOnce(logFile string, currentFile *os.File, logger *log.Logger) (*os.File, error) {
 	if err := currentFile.Sync(); err != nil {
 		logger.Printf("Error syncing log file before rotation: %v", err)
@@ -96,42 +95,6 @@ func rotateOnce(logFile string, currentFile *os.File, logger *log.Logger) (*os.F
 		return nil, err
 	}
 	logger.SetOutput(newFile)
-
-	logger.Println("Log file rotated successfully, now compressing old log...")
-
-	if err := compressFile(rotatedFile); err != nil {
-		logger.Printf("Error compressing rotated file: %v", err)
-	} else {
-		logger.Printf("Compression successful: %s.gz", rotatedFile)
-		if err := os.Remove(rotatedFile); err != nil {
-			logger.Printf("Error removing uncompressed rotated file: %v", err)
-		}
-	}
-
+	logger.Println("Log file rotated successfully; compression skipped to keep raw text accessible.")
 	return newFile, nil
-}
-
-// compressFile compresses the provided file path with gzip.
-// Keeping it private avoids accidental use outside rotation.
-func compressFile(filename string) error {
-	original, err := os.Open(filename)
-	if err != nil {
-		return fmt.Errorf("failed to open file for compression: %v", err)
-	}
-	defer original.Close()
-
-	gzFile, err := os.OpenFile(filename+".gz", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to create gz file: %v", err)
-	}
-	defer gzFile.Close()
-
-	gzWriter := gzip.NewWriter(gzFile)
-	defer gzWriter.Close()
-
-	if _, err := io.Copy(gzWriter, original); err != nil {
-		return fmt.Errorf("failed to copy data for compression: %v", err)
-	}
-
-	return nil
 }
