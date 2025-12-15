@@ -1,8 +1,8 @@
-//go:build openbsd
-// +build openbsd
+//go:build darwin
+// +build darwin
 
-// Package limits includes POSIX-specific limit tuning to mirror xinetd-like defaults on OpenBSD.
-// OpenBSD omits RLIMIT_AS, so the code targets RLIMIT_DATA to keep memory ceilings generous.
+// Package limits includes POSIX-specific limit tuning to mirror xinetd-like defaults on macOS.
+// Using a macOS-specific file keeps type handling aligned with the unsigned Rlimit fields.
 package limits
 
 import (
@@ -11,14 +11,14 @@ import (
 	"syscall"
 )
 
-// collectLimitRequests assembles the desired RLIMIT adjustments for OpenBSD.
-// RLIMIT_DATA stands in for address space limits because RLIMIT_AS is unavailable on this platform.
+// collectLimitRequests assembles the desired RLIMIT adjustments for macOS.
+// Keeping the list together documents which resources mirror the xinetd expectations.
 func collectLimitRequests(logger *log.Logger) []limitRequest {
 	desiredOpenFiles := uint64(100000)
 	desiredProcesses := uint64(100000)
 
 	requests := []limitRequest{
-		buildInfinityRequest("data segment (rlimit_data)", syscall.RLIMIT_DATA),
+		buildInfinityRequest("virtual memory (rlimit_as)", syscall.RLIMIT_AS),
 		buildInfinityRequest("CPU time (rlimit_cpu)", syscall.RLIMIT_CPU),
 		buildTargetRequest("open files (rlimit_files)", syscall.RLIMIT_NOFILE, desiredOpenFiles, logger),
 	}
@@ -32,8 +32,8 @@ func collectLimitRequests(logger *log.Logger) []limitRequest {
 	return requests
 }
 
-// buildInfinityRequest raises a resource to RLIM_INFINITY so the proxy is not capped prematurely.
-// Using the computed infinity mirrors the unsigned fields exposed by the OpenBSD syscall package.
+// buildInfinityRequest raises a resource to the platform infinity constant.
+// Using RLIM_INFINITY avoids unsafe conversions across architectures.
 func buildInfinityRequest(label string, resource int) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> unlimited", label),
@@ -57,8 +57,8 @@ func buildInfinityRequest(label string, resource int) limitRequest {
 	}
 }
 
-// buildTargetRequest nudges a resource toward the requested target and keeps the hard limit unchanged when required.
-// The fallback path maintains availability even if the kernel refuses to raise the maximum.
+// buildTargetRequest nudges a resource toward the requested level while honoring the hard ceiling.
+// When raising the hard limit is denied, the fallback keeps the process running with the best available values.
 func buildTargetRequest(label string, resource int, target uint64, logger *log.Logger) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> %d", label, target),
