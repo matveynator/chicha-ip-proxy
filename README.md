@@ -1,6 +1,4 @@
-## Linux: One-Command Install, Setup & Run
-
-On **Linux**, everything is automatic.
+## On **Linux**, everything is automatic.
 
 This single command will:
 
@@ -11,11 +9,9 @@ This single command will:
 * enable autostart
 * start forwarding immediately
 
+### as root:
 ```bash
-curl -fsSL https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 \
-| sudo tee /usr/local/bin/chicha-ip-proxy >/dev/null \
-&& sudo chmod +x /usr/local/bin/chicha-ip-proxy \
-&& sudo chicha-ip-proxy
+curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 > /usr/local/bin/chicha-ip-proxy; chmod +x /usr/local/bin/chicha-ip-proxy; /usr/local/bin/chicha-ip-proxy;
 ```
 
 ### What happens next
@@ -41,4 +37,10 @@ curl -fsSL https://github.com/matveynator/chicha-ip-proxy/releases/latest/downlo
 
 👉 [https://github.com/matveynator/chicha-ip-proxy/releases/](https://github.com/matveynator/chicha-ip-proxy/releases/)
 
+---
 
+## Quick Summary
+
+* **Linux** → one command, full auto-setup
+* **macOS / BSD / Windows** → run with flags manually
+* **Fast, minimal, production-ready**
