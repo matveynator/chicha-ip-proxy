@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
+	"github.com/matveynator/chicha-ip-proxy/pkg/limits"
 	"github.com/matveynator/chicha-ip-proxy/pkg/logging"
 	"github.com/matveynator/chicha-ip-proxy/pkg/proxy"
 	"github.com/matveynator/chicha-ip-proxy/pkg/setup"
@@ -86,6 +87,10 @@ func main() {
 	logger, file, err := logging.SetupLogger(actualLogFile)
 	if err != nil {
 		log.Fatalf("Error setting up logger: %v", err)
+	}
+
+	if err := limits.SetupLimits(logger); err != nil {
+		logger.Printf("System limit tuning encountered an issue: %v", err)
 	}
 
 	log.Printf("Starting chicha-ip-proxy version %s", version)
