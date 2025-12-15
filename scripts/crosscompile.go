@@ -83,7 +83,7 @@ func main() {
 
 			outputPath := filepath.Join(outputDir, execFileName)
 
-			ldflags := fmt.Sprintf("-X main.version=%s", version)
+			ldflags := fmt.Sprintf("-X github.com/matveynator/chicha-ip-proxy/pkg/version.Number=%s", version)
 			buildCmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", outputPath, goSourceFile)
 			buildCmd.Env = append(os.Environ(), "GOOS="+osName, "GOARCH="+arch)
 			if err := buildCmd.Run(); err != nil {

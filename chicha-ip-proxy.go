@@ -15,11 +15,8 @@ import (
 	"github.com/matveynator/chicha-ip-proxy/pkg/logging"
 	"github.com/matveynator/chicha-ip-proxy/pkg/proxy"
 	"github.com/matveynator/chicha-ip-proxy/pkg/setup"
+	"github.com/matveynator/chicha-ip-proxy/pkg/version"
 )
-
-// version holds the current version of the proxy application.
-// A programmer might increment this as they update the application.
-var version = "dev"
 
 func main() {
 	routesFlag := flag.String("routes", "", "Comma-separated list of TCP routes in the format LOCALPORT:REMOTEIP:REMOTEPORT")
@@ -30,8 +27,11 @@ func main() {
 
 	flag.Parse()
 
+	// Resolve the build version once so every subsystem prints a consistent identifier.
+	appVersion := version.Resolve()
+
 	if *versionFlag {
-		fmt.Printf("chicha-ip-proxy version %s\n", version)
+		fmt.Printf("chicha-ip-proxy version %s\n", appVersion)
 		return
 	}
 
@@ -100,7 +100,7 @@ func main() {
 		logger.Printf("System limit tuning encountered an issue: %v", err)
 	}
 
-	log.Printf("Starting chicha-ip-proxy version %s", version)
+	log.Printf("Starting chicha-ip-proxy version %s", appVersion)
 
 	numCPUs := runtime.NumCPU()
 	runtime.GOMAXPROCS(numCPUs)

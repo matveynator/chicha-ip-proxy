@@ -37,13 +37,23 @@ curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/
 
 👉 [https://github.com/matveynator/chicha-ip-proxy/releases/](https://github.com/matveynator/chicha-ip-proxy/releases/)
 
-All binaries are uploaded to the latest stable release, so every script or wiki snippet that downloads from `/releases/latest/download/` always targets the freshest stable build.
+All binaries are uploaded to a single rolling release tag, so every script or wiki snippet that downloads from `/releases/latest/download/` or `/releases/download/rolling-release/` always targets the freshest build without changing URLs.
 
 ## Stable release automation
 
 * A GitHub Action publishes a new release only when the commit message contains the keyword **"stable release"**.
-* The release name always includes the word **stable**, keeping the `/latest` download link consistent for automation and wiki scripts.
+* Every published artifact embeds the incremental Git commit count as its version, so `./chicha-ip-proxy -version` always shows a predictable build number.
+* Releases reuse the single `rolling-release` tag, avoiding multiple GitHub download URLs while still attaching the latest binaries.
 * Cross-platform builds are produced for macOS, Linux, Windows, FreeBSD, and OpenBSD on `amd64` and `arm64`.
+
+## Local builds with commit-based versions
+
+Run this command to mirror the CI build locally while stamping the binary with the sequential commit count:
+
+```bash
+VERSION=$(git rev-list --count HEAD)
+go build -ldflags "-X github.com/matveynator/chicha-ip-proxy/pkg/version.Number=${VERSION}" -o chicha-ip-proxy
+```
 
 ---
 
