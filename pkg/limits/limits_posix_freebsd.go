@@ -11,20 +11,20 @@ import (
 	"syscall"
 )
 
-// collectLimitRequests assembles the desired RLIMIT adjustments for macOS and FreeBSD.
+// platformLimitRequests assembles the desired RLIMIT adjustments for macOS and FreeBSD.
 // Keeping the list together documents which resources mirror the xinetd expectations.
-func collectLimitRequests(logger *log.Logger) []limitRequest {
+func platformLimitRequests(logger *log.Logger) []limitRequest {
 	desiredOpenFiles := int64(100000)
 	desiredProcesses := int64(100000)
 
 	requests := []limitRequest{
-		buildInfinityRequest("virtual memory (rlimit_as)", syscall.RLIMIT_AS),
-		buildInfinityRequest("CPU time (rlimit_cpu)", syscall.RLIMIT_CPU),
-		buildTargetRequest("open files (rlimit_files)", syscall.RLIMIT_NOFILE, desiredOpenFiles, logger),
+		buildInfinityRequestFreeBSD("virtual memory (rlimit_as)", syscall.RLIMIT_AS),
+		buildInfinityRequestFreeBSD("CPU time (rlimit_cpu)", syscall.RLIMIT_CPU),
+		buildTargetRequestFreeBSD("open files (rlimit_files)", syscall.RLIMIT_NOFILE, desiredOpenFiles, logger),
 	}
 
 	if procResource, ok := processLimitResource(); ok {
-		requests = append(requests, buildTargetRequest("process count (rlimit_proc)", procResource, desiredProcesses, logger))
+		requests = append(requests, buildTargetRequestFreeBSD("process count (rlimit_proc)", procResource, desiredProcesses, logger))
 	} else {
 		logger.Printf("Process limit resource is unavailable on this platform; skipping rlimit_proc")
 	}
@@ -32,9 +32,9 @@ func collectLimitRequests(logger *log.Logger) []limitRequest {
 	return requests
 }
 
-// buildInfinityRequest raises a resource to RLIM_INFINITY so workloads are not capped unexpectedly.
+// buildInfinityRequestFreeBSD raises a resource to RLIM_INFINITY so workloads are not capped unexpectedly.
 // Using RLIM_INFINITY matches the signed fields exposed by the BSD syscall package.
-func buildInfinityRequest(label string, resource int) limitRequest {
+func buildInfinityRequestFreeBSD(label string, resource int) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> unlimited", label),
 		apply: func() error {
@@ -56,9 +56,9 @@ func buildInfinityRequest(label string, resource int) limitRequest {
 	}
 }
 
-// buildTargetRequest nudges a resource toward the requested level while honoring the hard ceiling.
+// buildTargetRequestFreeBSD nudges a resource toward the requested level while honoring the hard ceiling.
 // When raising the hard limit is denied, the fallback keeps the process running with the best available values.
-func buildTargetRequest(label string, resource int, target int64, logger *log.Logger) limitRequest {
+func buildTargetRequestFreeBSD(label string, resource int, target int64, logger *log.Logger) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> %d", label, target),
 		apply: func() error {

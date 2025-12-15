@@ -11,20 +11,20 @@ import (
 	"syscall"
 )
 
-// collectLimitRequests assembles the desired RLIMIT adjustments for macOS.
+// platformLimitRequests assembles the desired RLIMIT adjustments for macOS.
 // Keeping the list together documents which resources mirror the xinetd expectations.
-func collectLimitRequests(logger *log.Logger) []limitRequest {
+func platformLimitRequests(logger *log.Logger) []limitRequest {
 	desiredOpenFiles := uint64(100000)
 	desiredProcesses := uint64(100000)
 
 	requests := []limitRequest{
-		buildInfinityRequest("virtual memory (rlimit_as)", syscall.RLIMIT_AS),
-		buildInfinityRequest("CPU time (rlimit_cpu)", syscall.RLIMIT_CPU),
-		buildTargetRequest("open files (rlimit_files)", syscall.RLIMIT_NOFILE, desiredOpenFiles, logger),
+		buildInfinityRequestDarwin("virtual memory (rlimit_as)", syscall.RLIMIT_AS),
+		buildInfinityRequestDarwin("CPU time (rlimit_cpu)", syscall.RLIMIT_CPU),
+		buildTargetRequestDarwin("open files (rlimit_files)", syscall.RLIMIT_NOFILE, desiredOpenFiles, logger),
 	}
 
 	if procResource, ok := processLimitResource(); ok {
-		requests = append(requests, buildTargetRequest("process count (rlimit_proc)", procResource, desiredProcesses, logger))
+		requests = append(requests, buildTargetRequestDarwin("process count (rlimit_proc)", procResource, desiredProcesses, logger))
 	} else {
 		logger.Printf("Process limit resource is unavailable on this platform; skipping rlimit_proc")
 	}
@@ -32,9 +32,9 @@ func collectLimitRequests(logger *log.Logger) []limitRequest {
 	return requests
 }
 
-// buildInfinityRequest raises a resource to the platform infinity constant.
+// buildInfinityRequestDarwin raises a resource to the platform infinity constant.
 // Using RLIM_INFINITY avoids unsafe conversions across architectures.
-func buildInfinityRequest(label string, resource int) limitRequest {
+func buildInfinityRequestDarwin(label string, resource int) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> unlimited", label),
 		apply: func() error {
@@ -57,9 +57,9 @@ func buildInfinityRequest(label string, resource int) limitRequest {
 	}
 }
 
-// buildTargetRequest nudges a resource toward the requested level while honoring the hard ceiling.
+// buildTargetRequestDarwin nudges a resource toward the requested level while honoring the hard ceiling.
 // When raising the hard limit is denied, the fallback keeps the process running with the best available values.
-func buildTargetRequest(label string, resource int, target uint64, logger *log.Logger) limitRequest {
+func buildTargetRequestDarwin(label string, resource int, target uint64, logger *log.Logger) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> %d", label, target),
 		apply: func() error {

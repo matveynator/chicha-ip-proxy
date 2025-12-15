@@ -11,20 +11,20 @@ import (
 	"syscall"
 )
 
-// collectLimitRequests assembles the desired RLIMIT adjustments for Linux.
+// platformLimitRequests assembles the desired RLIMIT adjustments for Linux.
 // Grouping them in one place mirrors xinetd defaults while keeping call sites small.
-func collectLimitRequests(logger *log.Logger) []limitRequest {
+func platformLimitRequests(logger *log.Logger) []limitRequest {
 	desiredOpenFiles := uint64(100000)
 	desiredProcesses := uint64(100000)
 
 	requests := []limitRequest{
-		buildInfinityRequest("virtual memory (rlimit_as)", syscall.RLIMIT_AS),
-		buildInfinityRequest("CPU time (rlimit_cpu)", syscall.RLIMIT_CPU),
-		buildTargetRequest("open files (rlimit_files)", syscall.RLIMIT_NOFILE, desiredOpenFiles, logger),
+		buildInfinityRequestLinux("virtual memory (rlimit_as)", syscall.RLIMIT_AS),
+		buildInfinityRequestLinux("CPU time (rlimit_cpu)", syscall.RLIMIT_CPU),
+		buildTargetRequestLinux("open files (rlimit_files)", syscall.RLIMIT_NOFILE, desiredOpenFiles, logger),
 	}
 
 	if procResource, ok := processLimitResource(); ok {
-		requests = append(requests, buildTargetRequest("process count (rlimit_proc)", procResource, desiredProcesses, logger))
+		requests = append(requests, buildTargetRequestLinux("process count (rlimit_proc)", procResource, desiredProcesses, logger))
 	} else {
 		logger.Printf("Process limit resource is unavailable on this platform; skipping rlimit_proc")
 	}
@@ -32,9 +32,9 @@ func collectLimitRequests(logger *log.Logger) []limitRequest {
 	return requests
 }
 
-// buildInfinityRequest raises a resource to the platform infinity constant.
+// buildInfinityRequestLinux raises a resource to the platform infinity constant.
 // Using RLIM_INFINITY avoids unsafe conversions across architectures.
-func buildInfinityRequest(label string, resource int) limitRequest {
+func buildInfinityRequestLinux(label string, resource int) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> unlimited", label),
 		apply: func() error {
@@ -57,9 +57,9 @@ func buildInfinityRequest(label string, resource int) limitRequest {
 	}
 }
 
-// buildTargetRequest nudges a resource toward the target while respecting current maxima.
+// buildTargetRequestLinux nudges a resource toward the target while respecting current maxima.
 // The fallback keeps the process running even when the hard ceiling cannot be raised.
-func buildTargetRequest(label string, resource int, target uint64, logger *log.Logger) limitRequest {
+func buildTargetRequestLinux(label string, resource int, target uint64, logger *log.Logger) limitRequest {
 	return limitRequest{
 		description: fmt.Sprintf("%s -> %d", label, target),
 		apply: func() error {
