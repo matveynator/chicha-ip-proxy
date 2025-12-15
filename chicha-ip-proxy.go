@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
@@ -49,6 +50,11 @@ func main() {
 
 	// Fall back to interactive setup when no routes are provided.
 	if len(tcpRoutes) == 0 && len(udpRoutes) == 0 {
+		if runtime.GOOS != "linux" {
+			showNonLinuxHelp()
+			return
+		}
+
 		interactiveResult, err := setup.RunInteractiveSetup("chicha-ip-proxy")
 		if err != nil {
 			log.Fatalf("Interactive setup failed: %v", err)
@@ -82,6 +88,7 @@ func main() {
 	}
 	fmt.Printf("Log file: %s\n", actualLogFile)
 	fmt.Printf("Log rotation frequency: %v\n", *rotationFrequency)
+	fmt.Println("Speed-up notice: system limits will be tuned on startup to keep the proxy responsive.")
 	fmt.Println("======================================")
 
 	logger, file, err := logging.SetupLogger(actualLogFile)
@@ -122,4 +129,20 @@ func main() {
 	}
 
 	select {}
+}
+
+// showNonLinuxHelp displays CLI usage and runnable examples when interactive setup is unavailable.
+// Keeping the helper small ensures the main path remains readable while offering guidance for other platforms.
+func showNonLinuxHelp() {
+	fmt.Println("Interactive setup works only on Linux. Please start the proxy with flags on this system.")
+	fmt.Println()
+	fmt.Println("Usage:")
+	flag.CommandLine.PrintDefaults()
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  TCP only : ./chicha-ip-proxy -routes=8080:203.0.113.10:80 -log=proxy.log")
+	fmt.Println("  UDP only : ./chicha-ip-proxy -udp-routes=5353:203.0.113.20:53 -rotation=12h")
+	fmt.Println("  Mixed run: ./chicha-ip-proxy -routes=8080:203.0.113.10:80 -udp-routes=5353:203.0.113.20:53")
+	fmt.Println()
+	fmt.Println("Tip: combine multiple ports with commas, for example -routes=" + strings.Join([]string{"8080:203.0.113.10:80", "8443:203.0.113.11:443"}, ","))
 }

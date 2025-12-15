@@ -12,6 +12,12 @@ import (
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
 )
 
+const (
+	greenText  = "\033[32m"
+	purpleText = "\033[35m"
+	resetText  = "\033[0m"
+)
+
 // InteractiveResult carries user-provided routes and derived metadata such as log and service names.
 // Keeping it small makes it easy to hand over to the main package without introducing global state.
 type InteractiveResult struct {
@@ -28,8 +34,11 @@ type InteractiveResult struct {
 func RunInteractiveSetup(appName string) (*InteractiveResult, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("No routes provided via flags. Starting interactive configuration...")
-	fmt.Print("Enter target IP address to proxy to: ")
+	fmt.Println(colorize(purpleText, "Interactive setup (Linux only)"))
+	fmt.Println(colorize(greenText, "We will ask for the destination IP and ports. Press Enter to confirm your choice."))
+	fmt.Println(colorize(greenText, "Note: startup will tune system limits to keep the proxy fast."))
+
+	fmt.Print(colorize(greenText, "Target IP (where traffic should go): "))
 	targetIP, err := readTrimmed(reader)
 	if err != nil {
 		return nil, err
@@ -38,7 +47,7 @@ func RunInteractiveSetup(appName string) (*InteractiveResult, error) {
 		return nil, fmt.Errorf("target IP cannot be empty")
 	}
 
-	fmt.Print("Enter protocols (comma separated, supported: tcp, udp): ")
+	fmt.Print(colorize(greenText, "Protocols to handle (tcp, udp). Use commas, e.g., tcp,udp: "))
 	protocolsRaw, err := readTrimmed(reader)
 	if err != nil {
 		return nil, err
@@ -54,7 +63,7 @@ func RunInteractiveSetup(appName string) (*InteractiveResult, error) {
 	for _, proto := range protocols {
 		switch strings.ToLower(proto) {
 		case "tcp":
-			fmt.Print("Enter local TCP ports (comma separated): ")
+			fmt.Print(colorize(purpleText, "Local TCP ports (comma separated, e.g., 8080,8443): "))
 			portsRaw, err := readTrimmed(reader)
 			if err != nil {
 				return nil, err
@@ -68,7 +77,7 @@ func RunInteractiveSetup(appName string) (*InteractiveResult, error) {
 				tcpRoutes = append(tcpRoutes, config.Route{LocalPort: port, RemoteIP: targetIP, RemotePort: remotePort})
 			}
 		case "udp":
-			fmt.Print("Enter local UDP ports (comma separated): ")
+			fmt.Print(colorize(purpleText, "Local UDP ports (comma separated, e.g., 5353,6000): "))
 			portsRaw, err := readTrimmed(reader)
 			if err != nil {
 				return nil, err
@@ -98,8 +107,9 @@ func RunInteractiveSetup(appName string) (*InteractiveResult, error) {
 		UDPRoutesFlag: routesFlagValue(udpRoutes),
 	}
 
-	fmt.Printf("Planned log file: %s\n", result.LogFile)
-	fmt.Printf("Planned systemd service name: %s\n", result.ServiceName)
+	fmt.Println(colorize(purpleText, "Planned paths:"))
+	fmt.Printf(colorize(greenText, "  Log file: %s\n"), result.LogFile)
+	fmt.Printf(colorize(greenText, "  Systemd service name: %s\n"), result.ServiceName)
 	return result, nil
 }
 
@@ -131,7 +141,7 @@ func splitAndClean(raw string) []string {
 // askRemotePort asks the operator for a remote port, defaulting to the provided local port when empty.
 // Returning the chosen port keeps the call sites simple.
 func askRemotePort(reader *bufio.Reader, localPort string) (string, error) {
-	fmt.Printf("Enter remote port for local port %s (press Enter to reuse local port): ", localPort)
+	fmt.Printf(colorize(greenText, "Remote port for local %s (press Enter to reuse local port): "), localPort)
 	remotePort, err := readTrimmed(reader)
 	if err != nil {
 		return "", err
@@ -188,4 +198,10 @@ func routesFlagValue(routes []config.Route) string {
 		values = append(values, fmt.Sprintf("%s:%s:%s", route.LocalPort, route.RemoteIP, route.RemotePort))
 	}
 	return strings.Join(values, ",")
+}
+
+// colorize wraps a message with ANSI color codes so prompts stay readable without extra dependencies.
+// Using simple color helpers keeps interactive output friendly without complicating logic.
+func colorize(color, message string) string {
+	return color + message + resetText
 }
