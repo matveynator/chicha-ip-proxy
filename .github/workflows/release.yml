@@ -1,13 +1,9 @@
-# Workflow builds cross-platform binaries and publishes a GitHub release when commits include "stable release".
+# Workflow builds cross-platform binaries and publishes a GitHub release only when commits include "stable release".
 # Keeping the matrix explicit makes future platform additions easy to reason about.
 name: cross-platform-release
 
 on:
   push:
-    branches:
-      - main
-      - master
-  workflow_dispatch: {}
 
 # Grant write access to release assets so publishing succeeds when the workflow
 # tags a stable build. GitHub defaults to read-only tokens, which prevents
@@ -17,6 +13,7 @@ permissions:
 
 jobs:
   build:
+    # Run the pipeline only when the commit message explicitly signals a stable release.
     if: contains(github.event.head_commit.message, 'stable release')
     runs-on: ubuntu-latest
     strategy:
@@ -48,6 +45,7 @@ jobs:
           path: dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   release:
+    # Publish only when the commit declares a stable release to keep download links predictable.
     if: contains(github.event.head_commit.message, 'stable release')
     runs-on: ubuntu-latest
     needs: build
@@ -67,8 +65,9 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: stable-${{ github.run_number }}
-          name: Automated stable release
+          tag_name: stable-release-${{ github.run_number }}
+          name: Stable release ${{ github.run_number }}
+          make_latest: true
           files: upload/chicha-ip-proxy-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
