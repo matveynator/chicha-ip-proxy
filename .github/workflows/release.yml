@@ -1,5 +1,5 @@
 # Workflow builds cross-platform binaries and publishes a GitHub release only when commits include "stable release".
-# Keeping the matrix explicit makes future platform additions easy to reason about.
+# Keeping the matrix explicit makes future platform additions easy to reason about while the single rolling tag keeps URLs stable.
 name: cross-platform-release
 
 on:
@@ -77,12 +77,53 @@ jobs:
           mkdir -p upload
           find dist -maxdepth 3 -type f -name "chicha-ip-proxy-*" -print -exec mv {} upload/ \;
 
+      - name: Reset rolling tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+import json
+import os
+import urllib.error
+import urllib.request
+
+# The release is always published under a single tag to keep download URLs stable.
+token = os.environ["GITHUB_TOKEN"]
+repo = os.environ["GITHUB_REPOSITORY"]
+tag = "rolling-release"
+base = f"https://api.github.com/repos/{repo}"
+headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+
+
+def request(method: str, url: str) -> tuple[int, bytes]:
+    req = urllib.request.Request(url, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return resp.status, resp.read()
+    except urllib.error.HTTPError as exc:  # The API returns 404 when the tag or release is absent.
+        return exc.code, exc.read()
+
+
+status, body = request("GET", f"{base}/releases/tags/{tag}")
+if status == 200:
+    release = json.loads(body.decode())
+    release_id = release.get("id")
+    if release_id:
+        request("DELETE", f"{base}/releases/{release_id}")
+
+# Remove the tag ref so the next release always attaches to the latest commit.
+request("DELETE", f"{base}/git/refs/tags/{tag}")
+PY
+
       - name: Publish release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ env.VERSION }}
-          name: Version ${{ env.VERSION }}
+          tag_name: rolling-release
+          name: Rolling release (commit count ${{ env.VERSION }})
           make_latest: true
+          target_commitish: ${{ github.sha }}
+          allow_updates: true
           files: upload/chicha-ip-proxy-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
