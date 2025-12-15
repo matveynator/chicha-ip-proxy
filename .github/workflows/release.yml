@@ -16,6 +16,8 @@ jobs:
     # Run the pipeline only when the commit message explicitly signals a stable release.
     if: contains(github.event.head_commit.message, 'stable release')
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.count }}
     strategy:
       matrix:
         goos: [linux, darwin, windows, freebsd, openbsd]
@@ -30,25 +32,38 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Compute incremental version
+        id: version
+        run: |
+          set -euo pipefail
+          echo "count=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Build binary
+        env:
+          VERSION: ${{ steps.version.outputs.count }}
         run: |
           set -euo pipefail
           ext=""
           if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
           mkdir -p dist
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o "dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build \
+            -ldflags "-X github.com/matveynator/chicha-ip-proxy/pkg/version.Number=${VERSION}" \
+            -o "dist/chicha-ip-proxy-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/chicha-ip-proxy-${{ matrix.goos }}-${{ matrix.goarch }}*
+          name: chicha-ip-proxy-${{ steps.version.outputs.count }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/chicha-ip-proxy-${{ steps.version.outputs.count }}-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   release:
     # Publish only when the commit declares a stable release to keep download links predictable.
     if: contains(github.event.head_commit.message, 'stable release')
     runs-on: ubuntu-latest
     needs: build
+
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
 
     steps:
       - name: Download build artifacts
@@ -65,8 +80,8 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: stable-release-${{ github.run_number }}
-          name: Stable release ${{ github.run_number }}
+          tag_name: v${{ env.VERSION }}
+          name: Version ${{ env.VERSION }}
           make_latest: true
           files: upload/chicha-ip-proxy-*
         env:
