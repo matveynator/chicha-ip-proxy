@@ -32,18 +32,19 @@ Designed as a fast and simple alternative to tools like `xinetd`.
 
 ## Download
 
-Download the latest Linux binary:
+Download and setup the latest Linux binary:
 
 ```bash
-curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 -o chicha-ip-proxy
-install -m 0755 chicha-ip-proxy /usr/local/bin/chicha-ip-proxy
+curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 -o chicha-ip-proxy;
+install -m 0755 chicha-ip-proxy /usr/local/bin/chicha-ip-proxy;
+/usr/local/bin/chicha-ip-proxy;
 ```
 
 That’s it. No dependencies.
 
 ---
 
-## Quick Start (Recommended)
+## Quick Setup (Recommended)
 
 Just run the binary **without flags**.
 
