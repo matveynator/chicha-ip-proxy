@@ -9,7 +9,7 @@ This single command will:
 * enable autostart
 * start forwarding immediately
 
-### as root:
+### Run as root user:
 ```bash
 curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 > /usr/local/bin/chicha-ip-proxy; chmod +x /usr/local/bin/chicha-ip-proxy; /usr/local/bin/chicha-ip-proxy;
 ```
