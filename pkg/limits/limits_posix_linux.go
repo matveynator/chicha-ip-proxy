@@ -1,4 +1,5 @@
 //go:build linux
+// +build linux
 
 // Package limits includes POSIX-specific limit tuning to mirror xinetd-like defaults on Linux.
 // Using a Linux-specific file keeps type handling aligned with the platform's syscall definitions.

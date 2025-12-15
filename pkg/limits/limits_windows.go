@@ -1,4 +1,5 @@
 //go:build windows
+// +build windows
 
 // Package limits documents the lack of configurable RLIMIT-style knobs on Windows.
 // The stub still runs through the channel pipeline so the caller sees consistent behavior.

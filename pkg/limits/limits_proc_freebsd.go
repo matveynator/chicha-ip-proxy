@@ -1,4 +1,5 @@
 //go:build freebsd
+// +build freebsd
 
 // Package limits defines FreeBSD's RLIMIT_NPROC numeric identifier for process cap tuning.
 // Encoding it here keeps the rest of the codebase decoupled from cgo or external packages.

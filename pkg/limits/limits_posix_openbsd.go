@@ -1,4 +1,5 @@
 //go:build openbsd
+// +build openbsd
 
 // Package limits includes POSIX-specific limit tuning to mirror xinetd-like defaults on OpenBSD.
 // OpenBSD omits RLIMIT_AS, so the code targets RLIMIT_DATA to keep memory ceilings generous.

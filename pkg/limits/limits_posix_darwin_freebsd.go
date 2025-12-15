@@ -1,4 +1,5 @@
 //go:build darwin || freebsd
+// +build darwin freebsd
 
 // Package limits includes POSIX-specific limit tuning to mirror xinetd-like defaults on BSD-derived systems.
 // Using a BSD-focused file keeps type handling compatible with the int64-based Rlimit definitions.
