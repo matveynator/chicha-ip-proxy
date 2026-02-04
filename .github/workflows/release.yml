@@ -1,171 +1,68 @@
-# Workflow builds cross-platform binaries and publishes a GitHub release only when commits include "stable release".
-# Keeping the matrix explicit makes future platform additions easy to reason about while the single rolling tag keeps URLs stable.
-name: cross-platform-release
+name: stable-release
 
 on:
   push:
-
-# Grant write access to release assets so publishing succeeds when the workflow
-# tags a stable build. GitHub defaults to read-only tokens, which prevents
-# creating releases even though the rest of the pipeline succeeds.
-permissions:
-  contents: write
+    branches:
+      - "**"
 
 jobs:
-  release:
-    # Publish only when the commit declares a stable release to keep download links predictable.
+  build-release:
     if: contains(github.event.head_commit.message, 'stable release')
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+          - goos: freebsd
+            goarch: amd64
+          - goos: freebsd
+            goarch: arm64
+          - goos: openbsd
+            goarch: amd64
+          - goos: openbsd
+            goarch: arm64
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
         run: |
-          set -euo pipefail
           git init .
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "${GITHUB_SHA}"
-          git checkout FETCH_HEAD
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout -f "${{ github.sha }}"
 
-      - name: Install Go toolchain without external actions
+      - name: Setup Go
         run: |
-          set -euo pipefail
-          curl -L "https://go.dev/dl/go1.21.10.linux-amd64.tar.gz" -o /tmp/go.tar.gz
+          curl -fsSL "https://go.dev/dl/go1.22.0.linux-amd64.tar.gz" -o /tmp/go.tar.gz
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf /tmp/go.tar.gz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
 
-      - name: Compute incremental version
-        id: version
+      - name: Build
         run: |
-          set -euo pipefail
-          echo "count=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+          mkdir -p dist
+          export CGO_ENABLED=0
+          export GOOS=${{ matrix.goos }}
+          export GOARCH=${{ matrix.goarch }}
+          output="chicha-ip-proxy_${GOOS}_${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            output="${output}.exe"
+          fi
+          /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o "dist/${output}" .
+          tar -czf "dist/${output}.tar.gz" -C dist "${output}"
 
-      - name: Build cross-platform binaries
-        env:
-          VERSION: ${{ steps.version.outputs.count }}
-        run: |
-          set -euo pipefail
-          mkdir -p upload
-          targets=(
-            "linux/amd64"
-            "linux/arm64"
-            "darwin/amd64"
-            "darwin/arm64"
-            "windows/amd64"
-            "windows/arm64"
-            "freebsd/amd64"
-            "freebsd/arm64"
-            "openbsd/amd64"
-            "openbsd/arm64"
-          )
-          for target in "${targets[@]}"; do
-            os="${target%/*}"
-            arch="${target#*/}"
-            ext=""
-            if [ "${os}" = "windows" ]; then ext=".exe"; fi
-            CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" go build \
-              -tags netgo \
-              -ldflags "-X github.com/matveynator/chicha-ip-proxy/pkg/version.Number=${VERSION}" \
-              -o "upload/chicha-ip-proxy-${os}-${arch}${ext}"
-          done
-
-      - name: Publish release without external actions
+      - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.count }}
         run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          import pathlib
-          import urllib.error
-          import urllib.request
-
-          token = os.environ["GITHUB_TOKEN"]
-          repo = os.environ["GITHUB_REPOSITORY"]
-          version = os.environ["VERSION"]
-          base = f"https://api.github.com/repos/{repo}"
-          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-          tag = "stable-release"
-
-
-          def request(method: str, url: str, data: bytes | None = None, extra_headers: dict | None = None) -> tuple[int, bytes]:
-              merged = dict(headers)
-              if extra_headers:
-                  merged.update(extra_headers)
-              req = urllib.request.Request(url, method=method, headers=merged, data=data)
-              try:
-                  with urllib.request.urlopen(req) as resp:
-                      return resp.status, resp.read()
-              except urllib.error.HTTPError as exc:
-                  return exc.code, exc.read()
-
-
-          status, body = request("GET", f"{base}/releases/tags/{tag}")
-          if status == 200:
-              release = json.loads(body.decode())
-              release_id = release.get("id")
-              if not release_id:
-                  raise SystemExit("Release ID missing.")
-              update_payload = json.dumps(
-                  {
-                      "tag_name": tag,
-                      "name": "Stable release",
-                      "target_commitish": os.environ.get("GITHUB_SHA", ""),
-                      "make_latest": "true",
-                      "prerelease": False,
-                  }
-              ).encode()
-              status, body = request(
-                  "PATCH",
-                  f"{base}/releases/{release_id}",
-                  update_payload,
-                  {"Content-Type": "application/json"},
-              )
-              if status not in (200, 201):
-                  raise SystemExit(f"Failed to update release: {status} {body.decode()}")
-              release = json.loads(body.decode())
-          else:
-              payload = json.dumps(
-                  {
-                      "tag_name": tag,
-                      "name": "Stable release",
-                      "target_commitish": os.environ.get("GITHUB_SHA", ""),
-                      "make_latest": "true",
-                      "prerelease": False,
-                  }
-              ).encode()
-              status, body = request("POST", f"{base}/releases", payload, {"Content-Type": "application/json"})
-              if status not in (200, 201):
-                  raise SystemExit(f"Failed to create release: {status} {body.decode()}")
-              release = json.loads(body.decode())
-
-          assets_url = release.get("assets_url", "")
-          if assets_url:
-              status, body = request("GET", assets_url)
-              if status == 200:
-                  assets = json.loads(body.decode())
-                  for asset in assets:
-                      asset_id = asset.get("id")
-                      if asset_id:
-                          request("DELETE", f"{base}/releases/assets/{asset_id}")
-
-          upload_url = release.get("upload_url", "").split("{")[0]
-          if not upload_url:
-              raise SystemExit("Release upload URL missing.")
-
-          for asset in sorted(pathlib.Path("upload").glob("chicha-ip-proxy-*")):
-              data = asset.read_bytes()
-              asset_url = f"{upload_url}?name={asset.name}"
-              status, body = request(
-                  "POST",
-                  asset_url,
-                  data,
-                  {"Content-Type": "application/octet-stream"},
-              )
-              if status not in (200, 201):
-                  raise SystemExit(f"Failed to upload {asset.name}: {status} {body.decode()}")
-          PY
+          tag="stable-${{ github.sha }}"
+          gh release create "$tag" dist/*.tar.gz --title "$tag" --notes "Automated stable release for ${{ github.sha }}."
