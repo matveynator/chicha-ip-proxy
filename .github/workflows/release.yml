@@ -68,7 +68,7 @@ jobs:
             CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" go build \
               -tags netgo \
               -ldflags "-X github.com/matveynator/chicha-ip-proxy/pkg/version.Number=${VERSION}" \
-              -o "upload/chicha-ip-proxy-${VERSION}-${os}-${arch}${ext}"
+              -o "upload/chicha-ip-proxy-${os}-${arch}${ext}"
           done
 
       - name: Publish release without external actions
