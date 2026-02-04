@@ -65,4 +65,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="stable-${{ github.sha }}"
-          gh release create "$tag" dist/*.tar.gz --title "$tag" --notes "Automated stable release for ${{ github.sha }}."
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --title "$tag" --notes "Automated stable release for ${{ github.sha }}."
+          fi
+          gh release upload "$tag" dist/*.tar.gz --clobber
