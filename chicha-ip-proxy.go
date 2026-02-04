@@ -66,7 +66,7 @@ func main() {
 		*routesFlag = interactiveResult.RoutesFlag
 		*udpRoutesFlag = interactiveResult.UDPRoutesFlag
 
-		systemdResult, err = setup.OfferSystemdSetup("chicha-ip-proxy", interactiveResult, *rotationFrequency)
+		systemdResult, err = setup.OfferAutostartSetup("chicha-ip-proxy", interactiveResult, *rotationFrequency)
 		if err != nil {
 			log.Printf("Systemd setup encountered an issue: %v", err)
 		}

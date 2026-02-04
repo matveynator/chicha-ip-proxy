@@ -116,15 +116,7 @@ func StreamLogs(logFile string, stop <-chan struct{}) {
 // buildUnitFile composes a systemd unit with explicit log file arguments and rotation schedule.
 // Embedding the rotation flag keeps the service aligned with interactive defaults.
 func buildUnitFile(appName string, interactive *InteractiveResult, rotation time.Duration, executable string) string {
-	args := make([]string, 0)
-	if interactive.RoutesFlag != "" {
-		args = append(args, fmt.Sprintf("-routes=%s", interactive.RoutesFlag))
-	}
-	if interactive.UDPRoutesFlag != "" {
-		args = append(args, fmt.Sprintf("-udp-routes=%s", interactive.UDPRoutesFlag))
-	}
-	args = append(args, fmt.Sprintf("-log=%s", interactive.LogFile))
-	args = append(args, fmt.Sprintf("-rotation=%s", rotation.String()))
+	args := buildArgs(interactive, rotation)
 
 	return fmt.Sprintf(`[Unit]
 Description=%s proxy service
