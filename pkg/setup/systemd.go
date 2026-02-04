@@ -19,9 +19,9 @@ type SystemdResult struct {
 	FollowLogs bool
 }
 
-// OfferSystemdSetup proposes creating, enabling, and starting a systemd unit.
+// offerSystemdSetup proposes creating, enabling, and starting a systemd unit.
 // The function keeps user prompts sequential while delegating long-running work to goroutines where useful.
-func OfferSystemdSetup(appName string, interactive *InteractiveResult, rotation time.Duration) (*SystemdResult, error) {
+func offerSystemdSetup(appName string, interactive *InteractiveResult, rotation time.Duration) (*SystemdResult, error) {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Printf("Would you like to create a systemd service '%s'? (y/N): ", interactive.ServiceName)
@@ -116,15 +116,7 @@ func StreamLogs(logFile string, stop <-chan struct{}) {
 // buildUnitFile composes a systemd unit with explicit log file arguments and rotation schedule.
 // Embedding the rotation flag keeps the service aligned with interactive defaults.
 func buildUnitFile(appName string, interactive *InteractiveResult, rotation time.Duration, executable string) string {
-	args := make([]string, 0)
-	if interactive.RoutesFlag != "" {
-		args = append(args, fmt.Sprintf("-routes=%s", interactive.RoutesFlag))
-	}
-	if interactive.UDPRoutesFlag != "" {
-		args = append(args, fmt.Sprintf("-udp-routes=%s", interactive.UDPRoutesFlag))
-	}
-	args = append(args, fmt.Sprintf("-log=%s", interactive.LogFile))
-	args = append(args, fmt.Sprintf("-rotation=%s", rotation.String()))
+	args := buildServiceArgs(interactive, rotation)
 
 	return fmt.Sprintf(`[Unit]
 Description=%s proxy service
@@ -138,6 +130,21 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 `, appName, executable, strings.Join(args, " "))
+}
+
+// buildServiceArgs assembles CLI arguments shared by systemd units and init scripts.
+// Centralizing this keeps both service types aligned with interactive defaults.
+func buildServiceArgs(interactive *InteractiveResult, rotation time.Duration) []string {
+	args := make([]string, 0)
+	if interactive.RoutesFlag != "" {
+		args = append(args, fmt.Sprintf("-routes=%s", interactive.RoutesFlag))
+	}
+	if interactive.UDPRoutesFlag != "" {
+		args = append(args, fmt.Sprintf("-udp-routes=%s", interactive.UDPRoutesFlag))
+	}
+	args = append(args, fmt.Sprintf("-log=%s", interactive.LogFile))
+	args = append(args, fmt.Sprintf("-rotation=%s", rotation.String()))
+	return args
 }
 
 // reloadSystemd triggers a daemon-reload to pick up newly written units.
