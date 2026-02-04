@@ -13,8 +13,8 @@ permissions:
 
 jobs:
   release:
-    # Publish only when the commit declares a stable release to keep download links predictable.
-    if: contains(github.event.head_commit.message, 'stable release')
+    # Publish only when any pushed commit declares a stable release to keep download links predictable.
+    if: contains(join(github.event.commits.*.message, ' '), 'stable release')
     runs-on: ubuntu-latest
 
     steps:
