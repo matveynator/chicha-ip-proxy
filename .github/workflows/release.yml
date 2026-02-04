@@ -71,45 +71,6 @@ jobs:
               -o "upload/chicha-ip-proxy-${VERSION}-${os}-${arch}${ext}"
           done
 
-      - name: Reset rolling tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          import urllib.error
-          import urllib.request
-
-          # The release is always published under a single tag to keep download URLs stable.
-          token = os.environ["GITHUB_TOKEN"]
-          repo = os.environ["GITHUB_REPOSITORY"]
-          tag = "rolling-release"
-          base = f"https://api.github.com/repos/{repo}"
-          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-
-
-          def request(method: str, url: str, data: bytes | None = None) -> tuple[int, bytes]:
-              req = urllib.request.Request(url, method=method, headers=headers, data=data)
-              try:
-                  with urllib.request.urlopen(req) as resp:
-                      return resp.status, resp.read()
-              except urllib.error.HTTPError as exc:  # The API returns 404 when the tag or release is absent.
-                  return exc.code, exc.read()
-
-
-          status, body = request("GET", f"{base}/releases/tags/{tag}")
-          if status == 200:
-              release = json.loads(body.decode())
-              release_id = release.get("id")
-              if release_id:
-                  request("DELETE", f"{base}/releases/{release_id}")
-
-          # Remove the tag ref so the next release always attaches to the latest commit.
-          request("DELETE", f"{base}/git/refs/tags/{tag}")
-          PY
-
       - name: Publish release without external actions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -128,7 +89,7 @@ jobs:
           version = os.environ["VERSION"]
           base = f"https://api.github.com/repos/{repo}"
           headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-          tag = "rolling-release"
+          tag = "stable-release"
 
 
           def request(method: str, url: str, data: bytes | None = None, extra_headers: dict | None = None) -> tuple[int, bytes]:
@@ -143,19 +104,55 @@ jobs:
                   return exc.code, exc.read()
 
 
-          payload = json.dumps(
-              {
-                  "tag_name": tag,
-                  "name": f"Rolling release (commit count {version})",
-                  "target_commitish": os.environ.get("GITHUB_SHA", ""),
-                  "make_latest": True,
-                  "prerelease": False,
-              }
-          ).encode()
-          status, body = request("POST", f"{base}/releases", payload, {"Content-Type": "application/json"})
-          if status not in (200, 201):
-              raise SystemExit(f"Failed to create release: {status} {body.decode()}")
-          release = json.loads(body.decode())
+          status, body = request("GET", f"{base}/releases/tags/{tag}")
+          if status == 200:
+              release = json.loads(body.decode())
+              release_id = release.get("id")
+              if not release_id:
+                  raise SystemExit("Release ID missing.")
+              update_payload = json.dumps(
+                  {
+                      "tag_name": tag,
+                      "name": "Stable release",
+                      "target_commitish": os.environ.get("GITHUB_SHA", ""),
+                      "make_latest": "true",
+                      "prerelease": False,
+                  }
+              ).encode()
+              status, body = request(
+                  "PATCH",
+                  f"{base}/releases/{release_id}",
+                  update_payload,
+                  {"Content-Type": "application/json"},
+              )
+              if status not in (200, 201):
+                  raise SystemExit(f"Failed to update release: {status} {body.decode()}")
+              release = json.loads(body.decode())
+          else:
+              payload = json.dumps(
+                  {
+                      "tag_name": tag,
+                      "name": "Stable release",
+                      "target_commitish": os.environ.get("GITHUB_SHA", ""),
+                      "make_latest": "true",
+                      "prerelease": False,
+                  }
+              ).encode()
+              status, body = request("POST", f"{base}/releases", payload, {"Content-Type": "application/json"})
+              if status not in (200, 201):
+                  raise SystemExit(f"Failed to create release: {status} {body.decode()}")
+              release = json.loads(body.decode())
+
+          assets_url = release.get("assets_url", "")
+          if assets_url:
+              status, body = request("GET", assets_url)
+              if status == 200:
+                  assets = json.loads(body.decode())
+                  for asset in assets:
+                      asset_id = asset.get("id")
+                      if asset_id:
+                          request("DELETE", f"{base}/releases/assets/{asset_id}")
+
           upload_url = release.get("upload_url", "").split("{")[0]
           if not upload_url:
               raise SystemExit("Release upload URL missing.")
