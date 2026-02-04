@@ -46,7 +46,8 @@ jobs:
           ext=""
           if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
           mkdir -p dist
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build \
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build \
+            -tags netgo \
             -ldflags "-X github.com/matveynator/chicha-ip-proxy/pkg/version.Number=${VERSION}" \
             -o "dist/chicha-ip-proxy-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${ext}"
 
@@ -127,4 +128,3 @@ PY
           files: upload/chicha-ip-proxy-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
