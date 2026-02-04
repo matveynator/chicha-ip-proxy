@@ -66,6 +66,12 @@ jobs:
         run: |
           tag="stable-${{ github.sha }}"
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --title "$tag" --notes "Automated stable release for ${{ github.sha }}."
+            gh release create "$tag" --title "$tag" --notes "Automated stable release for ${{ github.sha }}." || true
           fi
+          for i in 1 2 3 4 5; do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
           gh release upload "$tag" dist/*.tar.gz --clobber
