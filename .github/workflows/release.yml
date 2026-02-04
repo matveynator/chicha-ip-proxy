@@ -5,33 +5,13 @@ on:
     branches:
       - "**"
 
+permissions:
+  contents: write
+
 jobs:
   build-release:
     if: contains(github.event.head_commit.message, 'stable release')
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: arm64
-          - goos: freebsd
-            goarch: amd64
-          - goos: freebsd
-            goarch: arm64
-          - goos: openbsd
-            goarch: amd64
-          - goos: openbsd
-            goarch: arm64
     steps:
       - name: Checkout
         run: |
@@ -51,14 +31,17 @@ jobs:
         run: |
           mkdir -p dist
           export CGO_ENABLED=0
-          export GOOS=${{ matrix.goos }}
-          export GOARCH=${{ matrix.goarch }}
-          output="chicha-ip-proxy_${GOOS}_${GOARCH}"
-          if [ "$GOOS" = "windows" ]; then
-            output="${output}.exe"
-          fi
-          /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o "dist/${output}" .
-          tar -czf "dist/${output}.tar.gz" -C dist "${output}"
+          targets="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64 freebsd/arm64 openbsd/amd64 openbsd/arm64"
+          for target in $targets; do
+            GOOS="${target%/*}"
+            GOARCH="${target#*/}"
+            output="chicha-ip-proxy_${GOOS}_${GOARCH}"
+            if [ "$GOOS" = "windows" ]; then
+              output="${output}.exe"
+            fi
+            GOOS="$GOOS" GOARCH="$GOARCH" /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o "dist/${output}" .
+            tar -czf "dist/${output}.tar.gz" -C dist "${output}"
+          done
 
       - name: Publish release
         env:
@@ -66,12 +49,6 @@ jobs:
         run: |
           tag="stable-${{ github.sha }}"
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --title "$tag" --notes "Automated stable release for ${{ github.sha }}." || true
+            gh release create "$tag" --title "$tag" --notes "Automated stable release for ${{ github.sha }}."
           fi
-          for i in 1 2 3 4 5; do
-            if gh release view "$tag" >/dev/null 2>&1; then
-              break
-            fi
-            sleep 2
-          done
           gh release upload "$tag" dist/*.tar.gz --clobber
