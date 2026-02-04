@@ -34,10 +34,10 @@ jobs:
             goarch: arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: matveynator/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: matveynator/setup-go@v5
         with:
           go-version: "1.22"
 
@@ -55,7 +55,7 @@ jobs:
           tar -czf "dist/${output}.tar.gz" -C dist "${output}"
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: matveynator/action-gh-release@v2
         with:
           tag_name: stable-${{ github.sha }}
           name: stable-${{ github.sha }}
