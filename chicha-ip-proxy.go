@@ -46,7 +46,7 @@ func main() {
 	}
 
 	actualLogFile := *logFile
-	var systemdResult *setup.SystemdResult
+	var serviceResult *setup.ServiceResult
 
 	// Fall back to interactive setup when no routes are provided.
 	if len(tcpRoutes) == 0 && len(udpRoutes) == 0 {
@@ -66,9 +66,9 @@ func main() {
 		*routesFlag = interactiveResult.RoutesFlag
 		*udpRoutesFlag = interactiveResult.UDPRoutesFlag
 
-		systemdResult, err = setup.OfferSystemdSetup("chicha-ip-proxy", interactiveResult, *rotationFrequency)
+		serviceResult, err = setup.OfferServiceSetup("chicha-ip-proxy", interactiveResult, *rotationFrequency)
 		if err != nil {
-			log.Printf("Systemd setup encountered an issue: %v", err)
+			log.Printf("Service setup encountered an issue: %v", err)
 		}
 	}
 
@@ -123,7 +123,7 @@ func main() {
 		go proxy.StartUDPProxy(listenAddr, targetAddr, logger)
 	}
 
-	if systemdResult != nil && systemdResult.FollowLogs {
+	if serviceResult != nil && serviceResult.FollowLogs {
 		stop := make(chan struct{})
 		go setup.StreamLogs(actualLogFile, stop)
 	}
