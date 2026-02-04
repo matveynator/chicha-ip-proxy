@@ -57,7 +57,7 @@ jobs:
           if [ "$GOOS" = "windows" ]; then
             output="${output}.exe"
           fi
-          /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o "dist/${output}" ./...
+          /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o "dist/${output}" .
           tar -czf "dist/${output}.tar.gz" -C dist "${output}"
 
       - name: Publish release
