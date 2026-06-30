@@ -1,4 +1,6 @@
-# Chicha IP Proxy
+# chicha-ip-proxy
+
+TCP / UDP proxy
 
 <img width="45%" alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/0dc3b863-583f-41ea-b6a4-cfcf773a249c" />
 
