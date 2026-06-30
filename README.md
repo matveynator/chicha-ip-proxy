@@ -1,6 +1,6 @@
 # Chicha IP Proxy
 
-<img width="100%"  alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/0dc3b863-583f-41ea-b6a4-cfcf773a249c" />
+<img width="50%"  alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/0dc3b863-583f-41ea-b6a4-cfcf773a249c" />
 
 Small TCP/UDP port proxy with an automatic setup wizard.
 
