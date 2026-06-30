@@ -108,6 +108,29 @@ func TestBuildInteractiveResultAllowsDifferentLocalPort(t *testing.T) {
 	}
 }
 
+func TestBuildInteractiveResultFormatsIPv6RemoteFlags(t *testing.T) {
+	result, err := buildInteractiveResult("chicha-ip-proxy", setupDraft{
+		TargetIP:   "2001:db8::20",
+		RemotePort: "443",
+		LocalPort:  "8443",
+		Protocol:   "tcp",
+		AllowRaw:   "2001:db8::7",
+	})
+	if err != nil {
+		t.Fatalf("buildInteractiveResult returned error: %v", err)
+	}
+
+	if result.RemoteFlag != "[2001:db8::20]:443" {
+		t.Fatalf("RemoteFlag = %q", result.RemoteFlag)
+	}
+	if result.RoutesFlag != "8443:[2001:db8::20]:443" {
+		t.Fatalf("RoutesFlag = %q", result.RoutesFlag)
+	}
+	if !reflect.DeepEqual(result.AllowFlags, []string{"2001:db8::7"}) {
+		t.Fatalf("AllowFlags = %#v", result.AllowFlags)
+	}
+}
+
 func TestPromptWithDefaultShowsCurrentValue(t *testing.T) {
 	prompt := promptWithDefault("3) Local port", "8080")
 	if prompt != "3) Local port [8080]: " {

@@ -313,7 +313,7 @@ func printRoutes(label string, routes []config.Route) {
 	}
 
 	for _, route := range routes {
-		fmt.Printf(colorize(cyanText, "     :%s on this machine  ->  %s:%s\n"), route.LocalPort, route.RemoteIP, route.RemotePort)
+		fmt.Printf(colorize(cyanText, "     :%s on this machine  ->  %s\n"), route.LocalPort, route.RemoteAddress())
 	}
 }
 
@@ -405,7 +405,7 @@ func simpleRemoteFlag(route config.Route) string {
 	if route.RemotePort == route.LocalPort {
 		return route.RemoteIP
 	}
-	return route.RemoteIP + ":" + route.RemotePort
+	return route.RemoteAddress()
 }
 
 func defaultLogFile(appName, identifier string) string {
@@ -503,7 +503,7 @@ func routesFlagValue(routes []config.Route) string {
 
 	values := make([]string, 0, len(routes))
 	for _, route := range routes {
-		values = append(values, fmt.Sprintf("%s:%s:%s", route.LocalPort, route.RemoteIP, route.RemotePort))
+		values = append(values, fmt.Sprintf("%s:%s", route.LocalPort, route.RemoteAddress()))
 	}
 	return strings.Join(values, ",")
 }

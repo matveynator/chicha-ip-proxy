@@ -97,6 +97,66 @@ func TestParseSimpleRouteCreatesUDPRouteWithRemotePort(t *testing.T) {
 	}
 }
 
+func TestParseSimpleRouteAcceptsIPv6RemoteWithDefaultPort(t *testing.T) {
+	tcpRoutes, udpRoutes, used, err := ParseSimpleRoute(SimpleRouteFlags{
+		Local:  "8080",
+		Remote: "2001:db8::10",
+	})
+	if err != nil {
+		t.Fatalf("ParseSimpleRoute returned error: %v", err)
+	}
+	if !used {
+		t.Fatal("ParseSimpleRoute did not report simple flags as used")
+	}
+	if len(udpRoutes) != 0 {
+		t.Fatalf("UDP route count = %d, want 0", len(udpRoutes))
+	}
+	if len(tcpRoutes) != 1 {
+		t.Fatalf("TCP route count = %d, want 1", len(tcpRoutes))
+	}
+	route := tcpRoutes[0]
+	if route.RemoteIP != "2001:db8::10" || route.RemotePort != "8080" {
+		t.Fatalf("route = %#v", route)
+	}
+	if route.RemoteAddress() != "[2001:db8::10]:8080" {
+		t.Fatalf("RemoteAddress = %q", route.RemoteAddress())
+	}
+}
+
+func TestParseSimpleRouteAcceptsBracketedIPv6RemotePort(t *testing.T) {
+	tcpRoutes, _, _, err := ParseSimpleRoute(SimpleRouteFlags{
+		Local:  "8443",
+		Remote: "[2001:db8::10]:443",
+	})
+	if err != nil {
+		t.Fatalf("ParseSimpleRoute returned error: %v", err)
+	}
+	route := tcpRoutes[0]
+	if route.RemoteIP != "2001:db8::10" || route.RemotePort != "443" {
+		t.Fatalf("route = %#v", route)
+	}
+	if route.RemoteAddress() != "[2001:db8::10]:443" {
+		t.Fatalf("RemoteAddress = %q", route.RemoteAddress())
+	}
+}
+
+func TestParseRoutesAcceptsIPv6RemoteTargets(t *testing.T) {
+	routes, err := ParseRoutes("8080:[2001:db8::10]:80,8443:2001:db8::20:443")
+	if err != nil {
+		t.Fatalf("ParseRoutes returned error: %v", err)
+	}
+	if len(routes) != 2 {
+		t.Fatalf("route count = %d, want 2", len(routes))
+	}
+
+	if routes[0].LocalPort != "8080" || routes[0].RemoteIP != "2001:db8::10" || routes[0].RemotePort != "80" {
+		t.Fatalf("first route = %#v", routes[0])
+	}
+	if routes[1].LocalPort != "8443" || routes[1].RemoteIP != "2001:db8::20" || routes[1].RemotePort != "443" {
+		t.Fatalf("second route = %#v", routes[1])
+	}
+}
+
 func TestParseSimpleRouteRejectsInvalidInputs(t *testing.T) {
 	tests := []struct {
 		name  string

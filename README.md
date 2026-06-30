@@ -133,6 +133,12 @@ sudo chicha-ip-proxy -local=8080 -remote=203.0.113.10:80 -proto=tcp
 sudo chicha-ip-proxy -local=54 -remote=8.8.8.8:53 -proto=udp
 ```
 
+### IPv6 target
+
+```bash
+sudo chicha-ip-proxy -local=8443 -remote=[2001:db8::10]:443 -proto=tcp
+```
+
 ### Allow only one client IP
 
 ```bash
@@ -145,7 +151,7 @@ sudo chicha-ip-proxy -local=8080 -remote=203.0.113.10:80 -allow=198.51.100.7
 
 ```text
 -local   local port / локальный порт
--remote  target IP[:PORT] / куда пересылать
+-remote  target IP[:PORT] or [IPv6]:PORT / куда пересылать
 -proto   tcp or udp
 -allow   allowed IP/CIDR
 ```

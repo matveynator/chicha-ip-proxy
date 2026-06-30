@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/netip"
 	"syscall"
 	"testing"
 	"time"
@@ -51,5 +52,17 @@ func TestRejectTCPConnectionWithResetDoesNotCloseGracefully(t *testing.T) {
 	}
 	if !errors.Is(err, syscall.ECONNRESET) {
 		t.Fatalf("Read returned %v, want connection reset", err)
+	}
+}
+
+func TestRemoteAddrIPAcceptsIPv6SocketAddress(t *testing.T) {
+	addr := &net.TCPAddr{IP: net.ParseIP("2001:db8::7"), Port: 51820}
+
+	got, ok := remoteAddrIP(addr)
+	if !ok {
+		t.Fatal("remoteAddrIP rejected IPv6 socket address")
+	}
+	if got != netip.MustParseAddr("2001:db8::7") {
+		t.Fatalf("remoteAddrIP = %s", got)
 	}
 }

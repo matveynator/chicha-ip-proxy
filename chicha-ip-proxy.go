@@ -112,14 +112,14 @@ func main() {
 
 	for _, route := range tcpRoutes {
 		listenAddr := ":" + route.LocalPort
-		targetAddr := route.RemoteIP + ":" + route.RemotePort
+		targetAddr := route.RemoteAddress()
 		logger.Printf("Starting TCP proxy for route: local=%s remote=%s", listenAddr, targetAddr)
 		go proxy.StartTCPProxy(listenAddr, targetAddr, allowList, logger)
 	}
 
 	for _, route := range udpRoutes {
 		listenAddr := ":" + route.LocalPort
-		targetAddr := route.RemoteIP + ":" + route.RemotePort
+		targetAddr := route.RemoteAddress()
 		logger.Printf("Starting UDP proxy for route: local=%s remote=%s", listenAddr, targetAddr)
 		go proxy.StartUDPProxy(listenAddr, targetAddr, allowList, logger)
 	}
@@ -135,10 +135,10 @@ func main() {
 func printStartupSummary(tcpRoutes, udpRoutes []config.Route, allowList config.AllowList, logFile string) {
 	fmt.Print(branding.Banner)
 	for _, route := range tcpRoutes {
-		fmt.Printf("tcp  :%s -> %s:%s\n", route.LocalPort, route.RemoteIP, route.RemotePort)
+		fmt.Printf("tcp  :%s -> %s\n", route.LocalPort, route.RemoteAddress())
 	}
 	for _, route := range udpRoutes {
-		fmt.Printf("udp  :%s -> %s:%s\n", route.LocalPort, route.RemoteIP, route.RemotePort)
+		fmt.Printf("udp  :%s -> %s\n", route.LocalPort, route.RemoteAddress())
 	}
 	fmt.Printf("allow %s\n", allowListSummary(allowList))
 	fmt.Printf("log   %s\n\n", logFile)
@@ -195,12 +195,12 @@ func allowListSummary(allowList config.AllowList) string {
 func showFlagHelp() {
 	fmt.Print(branding.Banner)
 	fmt.Println("Usage:")
-	fmt.Println("  chicha-ip-proxy -local=PORT -remote=IP[:PORT] [options]")
+	fmt.Println("  chicha-ip-proxy -local=PORT -remote=IP|IP:PORT|[IPv6]:PORT [options]")
 	fmt.Println("  chicha-ip-proxy        # setup wizard")
 	fmt.Println()
 	fmt.Println("Flags:")
 	fmt.Println("  -local PORT")
-	fmt.Println("  -remote IP[:PORT]")
+	fmt.Println("  -remote IP|IP:PORT|[IPv6]:PORT")
 	fmt.Println("  -proto tcp|udp")
 	fmt.Println("  -allow IP|CIDR")
 	fmt.Println("  -log PATH")
@@ -210,4 +210,5 @@ func showFlagHelp() {
 	fmt.Println("Examples:")
 	fmt.Println("  chicha-ip-proxy -local=8080 -remote=203.0.113.10 -allow=198.51.100.7")
 	fmt.Println("  chicha-ip-proxy -local=5353 -remote=203.0.113.20:53 -proto=udp")
+	fmt.Println("  chicha-ip-proxy -local=8443 -remote=[2001:db8::10]:443")
 }

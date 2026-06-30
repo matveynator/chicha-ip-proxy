@@ -19,6 +19,12 @@ type Route struct {
 	RemotePort string // RemotePort is the port on the target host.
 }
 
+// RemoteAddress returns the dialable remote endpoint for TCP and UDP workers.
+// net.JoinHostPort keeps IPv6 bracket handling in one place instead of spreading string joins across packages.
+func (route Route) RemoteAddress() string {
+	return net.JoinHostPort(route.RemoteIP, route.RemotePort)
+}
+
 // SimpleRouteFlags carries the short public CLI form for one forwarding rule.
 type SimpleRouteFlags struct {
 	Local  string
@@ -43,16 +49,11 @@ func ParseRoutes(routesFlag string) ([]Route, error) {
 	routes := make([]Route, 0, len(parts))
 
 	for _, part := range parts {
-		segments := strings.Split(part, ":")
-		if len(segments) != 3 {
-			return nil, fmt.Errorf("invalid route format: '%s' (expected LOCALPORT:REMOTEIP:REMOTEPORT)", part)
+		route, err := parseLegacyRoute(part)
+		if err != nil {
+			return nil, err
 		}
-
-		routes = append(routes, Route{
-			LocalPort:  segments[0],
-			RemoteIP:   segments[1],
-			RemotePort: segments[2],
-		})
+		routes = append(routes, route)
 	}
 
 	return routes, nil
@@ -180,6 +181,59 @@ func parseAllowPrefix(raw string) (netip.Prefix, error) {
 		return netip.Prefix{}, fmt.Errorf("invalid allow IP '%s': %v", raw, err)
 	}
 	return netip.PrefixFrom(addr, addr.BitLen()), nil
+}
+
+func parseLegacyRoute(raw string) (Route, error) {
+	localPort, remoteTarget, ok := strings.Cut(strings.TrimSpace(raw), ":")
+	if !ok || localPort == "" || remoteTarget == "" {
+		return Route{}, fmt.Errorf("invalid route format: '%s' (expected LOCALPORT:REMOTEIP:REMOTEPORT)", raw)
+	}
+	if err := ValidatePort(localPort); err != nil {
+		return Route{}, fmt.Errorf("invalid local port in route '%s': %v", raw, err)
+	}
+
+	remoteIP, remotePort, err := parseLegacyRemoteTarget(remoteTarget)
+	if err != nil {
+		return Route{}, fmt.Errorf("invalid remote target in route '%s': %v", raw, err)
+	}
+	return Route{LocalPort: localPort, RemoteIP: remoteIP, RemotePort: remotePort}, nil
+}
+
+func parseLegacyRemoteTarget(remoteTarget string) (string, string, error) {
+	if host, port, err := net.SplitHostPort(remoteTarget); err == nil {
+		if err := validateRemoteIP(host); err != nil {
+			return "", "", err
+		}
+		if err := ValidatePort(port); err != nil {
+			return "", "", fmt.Errorf("invalid remote port: %v", err)
+		}
+		return host, port, nil
+	}
+
+	host, port, ok := strings.Cut(remoteTarget, ":")
+	if ok && strings.Count(remoteTarget, ":") == 1 {
+		if err := validateRemoteIP(host); err != nil {
+			return "", "", err
+		}
+		if err := ValidatePort(port); err != nil {
+			return "", "", fmt.Errorf("invalid remote port: %v", err)
+		}
+		return host, port, nil
+	}
+
+	lastColon := strings.LastIndex(remoteTarget, ":")
+	if lastColon <= 0 || lastColon == len(remoteTarget)-1 {
+		return "", "", fmt.Errorf("expected REMOTEIP:REMOTEPORT")
+	}
+	host = strings.Trim(remoteTarget[:lastColon], "[]")
+	port = remoteTarget[lastColon+1:]
+	if err := validateRemoteIP(host); err != nil {
+		return "", "", err
+	}
+	if err := ValidatePort(port); err != nil {
+		return "", "", fmt.Errorf("invalid remote port: %v", err)
+	}
+	return host, port, nil
 }
 
 func parseRemoteTarget(remote, defaultPort string) (string, string, error) {
