@@ -26,6 +26,9 @@ type linuxInfo struct {
 // The function keeps user prompts sequential while delegating long-running work to helpers.
 func OfferAutostartSetup(appName string, interactive *InteractiveResult, rotation time.Duration) (*SystemdResult, error) {
 	reader := bufio.NewReader(os.Stdin)
+	if err := validateAutostartName(interactive.ServiceName); err != nil {
+		return nil, err
+	}
 
 	switch runtime.GOOS {
 	case "linux":
@@ -328,6 +331,7 @@ func initServiceName(serviceName string) string {
 // Using a pidfile keeps lifecycle management simple without extra dependencies.
 func buildInitScript(appName string, interactive *InteractiveResult, rotation time.Duration, executable, initName string) string {
 	args := buildArgs(interactive, rotation)
+	commandArgs := shellJoin(args)
 
 	return fmt.Sprintf(`#!/bin/sh
 ### BEGIN INIT INFO
@@ -339,10 +343,9 @@ func buildInitScript(appName string, interactive *InteractiveResult, rotation ti
 # Short-Description: %s proxy service
 ### END INIT INFO
 
-APP_NAME="%s"
-EXEC="%s"
-ARGS="%s"
-PIDFILE="/var/run/%s.pid"
+APP_NAME=%s
+EXEC=%s
+PIDFILE=%s
 
 start() {
   if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
@@ -350,7 +353,7 @@ start() {
     return 0
   fi
   echo "Starting $APP_NAME"
-  nohup "$EXEC" $ARGS >/dev/null 2>&1 &
+  nohup "$EXEC" %s >/dev/null 2>&1 &
   echo $! > "$PIDFILE"
 }
 
@@ -392,7 +395,7 @@ case "$1" in
 esac
 
 exit 0
-`, initName, appName, appName, executable, strings.Join(args, " "), initName)
+`, initName, appName, shellQuote(appName), shellQuote(executable), shellQuote(filepath.Join("/var/run", initName+".pid")), commandArgs)
 }
 
 // buildLaunchdPlist renders a LaunchDaemon with explicit arguments instead of shell parsing.
@@ -438,13 +441,13 @@ func buildBSDRCScript(appName string, interactive *InteractiveResult, rotation t
 	if osName == "openbsd" {
 		return fmt.Sprintf(`#!/bin/ksh
 
-daemon="%s"
-daemon_flags="%s"
+daemon=%s
+daemon_flags=%s
 
 . /etc/rc.d/rc.subr
 
 rc_cmd $1
-`, executable, strings.Join(args, " "))
+`, shellQuote(executable), shellQuote(strings.Join(args, " ")))
 	}
 
 	return fmt.Sprintf(`#!/bin/sh
@@ -457,15 +460,15 @@ rc_cmd $1
 
 name="%s"
 rcvar="%s_enable"
-command="%s"
-command_args="%s"
-pidfile="/var/run/%s.pid"
+command=%s
+command_args=%s
+pidfile=%s
 
 load_rc_config "$name"
 : ${%s_enable:="NO"}
 
 run_rc_command "$1"
-`, name, name, name, executable, strings.Join(args, " "), name, name)
+`, name, name, name, shellQuote(executable), shellQuote(strings.Join(args, " ")), shellQuote(filepath.Join("/var/run", name+".pid")), name)
 }
 
 func bsdRCPath(serviceName, osName string) string {
@@ -502,12 +505,72 @@ func windowsTaskCommand(executable string, args []string) string {
 }
 
 func windowsCommandQuote(value string) string {
-	return `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
+	escaped := strings.ReplaceAll(value, `"`, `\"`)
+	return `"` + escaped + `"`
 }
 
 func shellIdentifier(value string) string {
 	replacer := strings.NewReplacer("-", "_", ".", "_")
 	return replacer.Replace(value)
+}
+
+func validateAutostartName(value string) error {
+	if value == "" {
+		return fmt.Errorf("autostart name cannot be empty")
+	}
+	for _, char := range value {
+		if char >= 'a' && char <= 'z' {
+			continue
+		}
+		if char >= 'A' && char <= 'Z' {
+			continue
+		}
+		if char >= '0' && char <= '9' {
+			continue
+		}
+		if char == '-' || char == '_' || char == '.' {
+			continue
+		}
+		return fmt.Errorf("autostart name %q contains unsafe character %q", value, char)
+	}
+	return nil
+}
+
+func shellJoin(values []string) string {
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, shellQuote(value))
+	}
+	return strings.Join(quoted, " ")
+}
+
+func shellQuote(value string) string {
+	if value == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
+}
+
+func systemdJoin(values []string) string {
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, systemdQuote(value))
+	}
+	return strings.Join(quoted, " ")
+}
+
+func systemdQuote(value string) string {
+	if value == "" {
+		return `""`
+	}
+	if strings.IndexFunc(value, func(char rune) bool {
+		return !(char == '-' || char == '_' || char == '.' || char == '/' || char == ':' || char == '=' || char == ',' || char == '+' || (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9'))
+	}) == -1 {
+		return value
+	}
+	escaped := strings.ReplaceAll(value, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+	return `"` + escaped + `"`
 }
 
 func xmlEscape(value string) string {

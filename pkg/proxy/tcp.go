@@ -3,14 +3,26 @@
 package proxy
 
 import (
-	"io"
 	"log"
 	"net"
 	"net/netip"
 	"runtime"
+	"time"
 
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
 )
+
+const (
+	defaultMaxTCPConnectionsPerRoute = 1024
+	tcpDialTimeout                   = 10 * time.Second
+	tcpIdleTimeout                   = 5 * time.Minute
+	tcpWriteTimeout                  = 30 * time.Second
+)
+
+type tcpConnJob struct {
+	conn    net.Conn
+	release <-chan struct{}
+}
 
 // StartTCPProxy listens on the provided address and forwards connections to the target.
 // Using a channel for accepted connections keeps synchronization explicit without mutexes.
@@ -23,7 +35,8 @@ func StartTCPProxy(listenAddr, targetAddr string, allowList config.AllowList, lo
 
 	logger.Printf("TCP proxy started on %s forwarding to %s", listenAddr, targetAddr)
 
-	connChan := make(chan net.Conn)
+	connChan := make(chan tcpConnJob)
+	activeConnections := make(chan struct{}, defaultMaxTCPConnectionsPerRoute)
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go handleTCPConnections(connChan, targetAddr, logger)
@@ -43,7 +56,15 @@ func StartTCPProxy(listenAddr, targetAddr string, allowList config.AllowList, lo
 			continue
 		}
 
-		connChan <- clientConn
+		select {
+		case activeConnections <- struct{}{}:
+		default:
+			logger.Printf("Rejected TCP connection from %s on %s: connection limit reached", clientConn.RemoteAddr().String(), listenAddr)
+			rejectTCPConnectionWithReset(clientConn, logger)
+			continue
+		}
+
+		connChan <- tcpConnJob{conn: clientConn, release: activeConnections}
 	}
 }
 
@@ -77,50 +98,81 @@ func rejectTCPConnectionWithReset(conn net.Conn, logger *log.Logger) {
 
 // handleTCPConnections establishes bidirectional copy pipelines for every TCP client.
 // Each direction gets its own goroutine so that slow receivers do not block senders.
-func handleTCPConnections(connChan <-chan net.Conn, targetAddr string, logger *log.Logger) {
+func handleTCPConnections(connChan <-chan tcpConnJob, targetAddr string, logger *log.Logger) {
 	for {
 		select {
-		case clientConn, ok := <-connChan:
+		case job, ok := <-connChan:
 			if !ok {
 				return
 			}
 
-			go func(conn net.Conn) {
-				defer conn.Close()
-
-				clientAddr := conn.RemoteAddr().String()
-				logger.Printf("New TCP connection: %s -> %s", clientAddr, targetAddr)
-
-				serverConn, err := net.Dial("tcp", targetAddr)
-				if err != nil {
-					logger.Printf("Failed to connect to TCP server %s: %v", targetAddr, err)
-					return
-				}
-				defer serverConn.Close()
-
-				done := make(chan struct{}, 2)
-
-				go func() {
-					_, err := io.Copy(serverConn, conn)
-					if err != nil && err != io.EOF {
-						logger.Printf("Error copying from TCP client %s to server %s: %v", clientAddr, targetAddr, err)
-					}
-					done <- struct{}{}
-				}()
-
-				go func() {
-					_, err := io.Copy(conn, serverConn)
-					if err != nil && err != io.EOF {
-						logger.Printf("Error copying from TCP server %s to client %s: %v", targetAddr, clientAddr, err)
-					}
-					done <- struct{}{}
-				}()
-
-				<-done
-				<-done
-
-				logger.Printf("TCP connection closed: %s -> %s", clientAddr, targetAddr)
-			}(clientConn)
+			go handleTCPConnection(job, targetAddr, logger)
 		}
 	}
+}
+
+func handleTCPConnection(job tcpConnJob, targetAddr string, logger *log.Logger) {
+	conn := job.conn
+	defer func() {
+		<-job.release
+	}()
+	defer conn.Close()
+
+	clientAddr := conn.RemoteAddr().String()
+	logger.Printf("New TCP connection: %s -> %s", clientAddr, targetAddr)
+
+	dialer := net.Dialer{Timeout: tcpDialTimeout}
+	serverConn, err := dialer.Dial("tcp", targetAddr)
+	if err != nil {
+		logger.Printf("Failed to connect to TCP server %s: %v", targetAddr, err)
+		return
+	}
+	defer serverConn.Close()
+
+	done := make(chan struct{}, 2)
+	go copyTCPStream(serverConn, conn, "client", clientAddr, targetAddr, logger, done)
+	go copyTCPStream(conn, serverConn, "server", clientAddr, targetAddr, logger, done)
+
+	<-done
+	conn.Close()
+	serverConn.Close()
+	<-done
+
+	logger.Printf("TCP connection closed: %s -> %s", clientAddr, targetAddr)
+}
+
+func copyTCPStream(dst net.Conn, src net.Conn, direction, clientAddr, targetAddr string, logger *log.Logger, done chan<- struct{}) {
+	defer func() {
+		done <- struct{}{}
+	}()
+
+	buffer := make([]byte, 32*1024)
+	for {
+		_ = src.SetReadDeadline(time.Now().Add(tcpIdleTimeout))
+		n, readErr := src.Read(buffer)
+		if n > 0 {
+			_ = dst.SetWriteDeadline(time.Now().Add(tcpWriteTimeout))
+			if writeErr := writeFull(dst, buffer[:n]); writeErr != nil {
+				logger.Printf("Error writing TCP %s stream for %s -> %s: %v", direction, clientAddr, targetAddr, writeErr)
+				return
+			}
+		}
+		if readErr != nil {
+			if netErr, ok := readErr.(net.Error); ok && netErr.Timeout() {
+				logger.Printf("Closing idle TCP %s stream for %s -> %s", direction, clientAddr, targetAddr)
+			}
+			return
+		}
+	}
+}
+
+func writeFull(conn net.Conn, payload []byte) error {
+	for len(payload) > 0 {
+		n, err := conn.Write(payload)
+		if err != nil {
+			return err
+		}
+		payload = payload[n:]
+	}
+	return nil
 }

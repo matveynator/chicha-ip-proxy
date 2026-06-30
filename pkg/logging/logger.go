@@ -17,20 +17,44 @@ const DefaultMaxSizeBytes int64 = 100 * 1024 * 1024
 // SetupLogger opens the target file and returns a standard logger alongside the underlying file handle.
 // Returning the file lets the caller manage its lifecycle without hidden global state.
 func SetupLogger(logFile string) (*log.Logger, *os.File, error) {
+	if err := validateSafeLogPath(logFile); err != nil {
+		return nil, nil, err
+	}
+
 	logDir := filepath.Dir(logFile)
 	if logDir != "." {
-		if err := os.MkdirAll(logDir, 0755); err != nil {
+		if err := os.MkdirAll(logDir, 0750); err != nil {
 			return nil, nil, fmt.Errorf("failed to create log directory '%s': %v", logDir, err)
 		}
 	}
 
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err := validateSafeLogPath(logFile); err != nil {
+		return nil, nil, err
+	}
+
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open log file '%s': %v", logFile, err)
 	}
 
 	logger := log.New(file, "", log.LstdFlags)
 	return logger, file, nil
+}
+
+// validateSafeLogPath rejects symlinked log files so privileged runs cannot be tricked into appending to arbitrary files.
+func validateSafeLogPath(logFile string) error {
+	info, err := os.Lstat(filepath.Clean(logFile))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to inspect log path '%s': %v", logFile, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("unsafe log path '%s': symlinks are not allowed", logFile)
+	}
+
+	return nil
 }
 
 // RotateLogs performs periodic rotation and keeps the logs uncompressed.
@@ -87,9 +111,14 @@ func rotateOnce(logFile string, currentFile *os.File, logger *log.Logger) (*os.F
 	if err := os.Rename(logFile, rotatedFile); err != nil {
 		logger.Printf("Error rotating logs: %v", err)
 
-		reopened, reopenErr := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if safeErr := validateSafeLogPath(logFile); safeErr != nil {
+			logger.Printf("Refusing to reopen unsafe log path after rotation error: %v", safeErr)
+			return nil, safeErr
+		}
+
+		reopened, reopenErr := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if reopenErr != nil {
-			logger.Fatalf("Failed to reopen log file after rotation error: %v", reopenErr)
+			logger.Printf("Failed to reopen log file after rotation error: %v", reopenErr)
 			return nil, reopenErr
 		}
 
@@ -97,9 +126,14 @@ func rotateOnce(logFile string, currentFile *os.File, logger *log.Logger) (*os.F
 		return reopened, err
 	}
 
-	newFile, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if safeErr := validateSafeLogPath(logFile); safeErr != nil {
+		logger.Printf("Refusing to create unsafe log path after rotation: %v", safeErr)
+		return nil, safeErr
+	}
+
+	newFile, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		logger.Fatalf("Failed to create new log file after rotation: %v", err)
+		logger.Printf("Failed to create new log file after rotation: %v", err)
 		return nil, err
 	}
 	logger.SetOutput(newFile)

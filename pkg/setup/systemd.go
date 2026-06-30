@@ -114,6 +114,7 @@ func StreamLogs(logFile string, stop <-chan struct{}) {
 // Embedding the rotation flag keeps the service aligned with interactive defaults.
 func buildUnitFile(appName string, interactive *InteractiveResult, rotation time.Duration, executable string) string {
 	args := buildArgs(interactive, rotation)
+	execArgs := append([]string{executable}, args...)
 
 	return fmt.Sprintf(`[Unit]
 Description=%s proxy service
@@ -121,12 +122,12 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=%s %s
+ExecStart=%s
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-`, appName, executable, strings.Join(args, " "))
+`, appName, systemdJoin(execArgs))
 }
 
 func systemdUnitName(serviceName string) string {

@@ -11,6 +11,8 @@ import (
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
 )
 
+const defaultMaxUDPSessionsPerRoute = 4096
+
 // udpMessage represents a single datagram from a client.
 // Keeping the payload in a dedicated struct makes it easy to fan out with channels.
 type udpMessage struct {
@@ -66,7 +68,11 @@ func StartUDPProxy(listenAddr, targetAddr string, allowList config.AllowList, lo
 		payloadCopy := make([]byte, n)
 		copy(payloadCopy, buffer[:n])
 
-		msgChan <- udpMessage{data: payloadCopy, addr: addr}
+		select {
+		case msgChan <- udpMessage{data: payloadCopy, addr: addr}:
+		default:
+			logger.Printf("Dropping UDP packet from %s on %s: input queue full", addr.String(), listenAddr)
+		}
 	}
 }
 
@@ -85,6 +91,11 @@ func manageUDPSessions(targetAddr string, responder net.PacketConn, logger *log.
 			sessionKey := msg.addr.String()
 			session, ok := sessions[sessionKey]
 			if !ok {
+				if len(sessions) >= defaultMaxUDPSessionsPerRoute {
+					logger.Printf("Dropping UDP packet for %s: session limit reached", sessionKey)
+					continue
+				}
+
 				resolvedTarget, err := net.ResolveUDPAddr("udp", targetAddr)
 				if err != nil {
 					logger.Printf("Failed to resolve UDP target %s: %v", targetAddr, err)

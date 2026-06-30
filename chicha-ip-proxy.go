@@ -44,6 +44,9 @@ func main() {
 		fmt.Printf("chicha-ip-proxy version %s\n", appVersion)
 		return
 	}
+	if err := validateRotationFrequency(*rotationFrequency); err != nil {
+		log.Fatalf("Error: %v", err)
+	}
 
 	tcpRoutes, udpRoutes, err := parseRoutesFromFlags(*routesFlag, *udpRoutesFlag, config.SimpleRouteFlags{
 		Local:  *localFlag,
@@ -156,6 +159,13 @@ func parseRoutesFromFlags(legacyTCPRoutes, legacyUDPRoutes string, simpleFlags c
 
 	tcpRoutes, udpRoutes, _, err := config.ParseSimpleRoute(simpleFlags)
 	return tcpRoutes, udpRoutes, err
+}
+
+func validateRotationFrequency(rotation time.Duration) error {
+	if rotation <= 0 {
+		return fmt.Errorf("-rotation must be positive")
+	}
+	return nil
 }
 
 // repeatedFlag stores every occurrence of flags such as -allow.

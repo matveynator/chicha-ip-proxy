@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
 )
@@ -42,6 +43,18 @@ func TestParseRoutesFromFlagsKeepsLegacyPrecedence(t *testing.T) {
 	}
 	if tcpRoutes[0].LocalPort != "9000" {
 		t.Fatalf("legacy route was not preferred: %#v", tcpRoutes[0])
+	}
+}
+
+func TestValidateRotationFrequencyRejectsNonPositive(t *testing.T) {
+	if err := validateRotationFrequency(time.Hour); err != nil {
+		t.Fatalf("validateRotationFrequency rejected positive duration: %v", err)
+	}
+	if err := validateRotationFrequency(0); err == nil {
+		t.Fatal("validateRotationFrequency accepted zero duration")
+	}
+	if err := validateRotationFrequency(-time.Second); err == nil {
+		t.Fatal("validateRotationFrequency accepted negative duration")
 	}
 }
 

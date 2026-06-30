@@ -59,6 +59,52 @@ func TestBuildBSDRCScriptUsesPlatformSyntax(t *testing.T) {
 	}
 }
 
+func TestBuildInitScriptShellQuotesArguments(t *testing.T) {
+	result := &InteractiveResult{
+		ServiceName: "chicha-ip-proxy-tcp-8080",
+		LocalFlag:   "8080",
+		RemoteFlag:  "203.0.113.20",
+		LogFile:     "/tmp/chicha log/proxy.log",
+	}
+
+	script := buildInitScript("chicha ip proxy", result, time.Hour, "/usr/local/bin/chicha ip proxy", "chicha-ip-proxy-tcp-8080")
+	for _, want := range []string{
+		"APP_NAME='chicha ip proxy'",
+		"EXEC='/usr/local/bin/chicha ip proxy'",
+		"'-log=/tmp/chicha log/proxy.log'",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("init script missing quoted value %q:\n%s", want, script)
+		}
+	}
+}
+
+func TestBuildUnitFileQuotesExecStart(t *testing.T) {
+	result := &InteractiveResult{
+		ServiceName: "chicha-ip-proxy-tcp-8080",
+		LocalFlag:   "8080",
+		RemoteFlag:  "203.0.113.20",
+		LogFile:     "/tmp/chicha log/proxy.log",
+	}
+
+	unit := buildUnitFile("chicha-ip-proxy", result, time.Hour, "/usr/local/bin/chicha ip proxy")
+	if !strings.Contains(unit, `ExecStart="/usr/local/bin/chicha ip proxy"`) {
+		t.Fatalf("unit file did not quote executable path:\n%s", unit)
+	}
+	if !strings.Contains(unit, `"-log=/tmp/chicha log/proxy.log"`) {
+		t.Fatalf("unit file did not quote log argument:\n%s", unit)
+	}
+}
+
+func TestValidateAutostartNameRejectsUnsafeCharacters(t *testing.T) {
+	if err := validateAutostartName("chicha-ip-proxy.tcp_8080"); err != nil {
+		t.Fatalf("validateAutostartName rejected safe name: %v", err)
+	}
+	if err := validateAutostartName("bad;name"); err == nil {
+		t.Fatal("validateAutostartName accepted unsafe name")
+	}
+}
+
 func TestWindowsTaskCommandQuotesExecutableAndArgs(t *testing.T) {
 	command := windowsTaskCommand(`C:\Program Files\chicha\chicha-ip-proxy.exe`, []string{
 		"-local=8080",
