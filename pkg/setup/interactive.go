@@ -4,6 +4,7 @@ package setup
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -13,8 +14,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/matveynator/chicha-ip-proxy/pkg/branding"
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
 )
+
+// ErrSetupCancelled reports that the operator exited before saving the generated setup.
+var ErrSetupCancelled = errors.New("setup cancelled")
 
 const (
 	greenText  = "\033[32m"
@@ -41,10 +46,11 @@ type InteractiveResult struct {
 }
 
 type setupDraft struct {
-	TargetIP string
-	Port     string
-	Protocol string
-	AllowRaw string
+	TargetIP   string
+	RemotePort string
+	LocalPort  string
+	Protocol   string
+	AllowRaw   string
 }
 
 // RunInteractiveSetup asks the operator for one route and source restrictions when flags are absent.
@@ -71,11 +77,14 @@ func RunInteractiveSetup(appName string) (*InteractiveResult, error) {
 			if err != nil {
 				return nil, err
 			}
-			if choice == "5" || choice == "" {
+			if choice == "6" || choice == "" {
 				return result, nil
 			}
+			if choice == "7" {
+				return nil, ErrSetupCancelled
+			}
 
-			if err := applyReviewEdit(reader, &draft, choice); err != nil {
+			if err := applyReviewEdit(reader, appName, &draft, choice); err != nil {
 				return nil, err
 			}
 		}
@@ -83,11 +92,9 @@ func RunInteractiveSetup(appName string) (*InteractiveResult, error) {
 }
 
 func printSetupHeader() {
-	fmt.Println(colorize(purpleText, "Chicha IP Proxy setup"))
-	fmt.Println(colorize(cyanText, "Configure one forwarding route and choose which client IPs may use it."))
+	fmt.Print(branding.Banner)
 	fmt.Printf(colorize(cyanText, "Operating system: %s\n"), runtime.GOOS)
-	fmt.Println(colorize(greenText, "Press Enter on protocol to use TCP. Leave allowed clients empty to allow everyone."))
-	fmt.Println(colorize(greenText, "Startup will tune system limits to keep the proxy fast."))
+	fmt.Println(colorize(yellowText, "Ctrl+C exits without saving."))
 	fmt.Println()
 }
 
@@ -95,7 +102,10 @@ func askInitialSetup(reader *bufio.Reader, draft *setupDraft) error {
 	if err := askTargetIP(reader, draft); err != nil {
 		return err
 	}
-	if err := askPort(reader, draft); err != nil {
+	if err := askRemotePort(reader, draft); err != nil {
+		return err
+	}
+	if err := askLocalPort(reader, draft); err != nil {
 		return err
 	}
 	if err := askProtocol(reader, draft); err != nil {
@@ -105,10 +115,13 @@ func askInitialSetup(reader *bufio.Reader, draft *setupDraft) error {
 }
 
 func askTargetIP(reader *bufio.Reader, draft *setupDraft) error {
-	fmt.Print(colorize(greenText, "1) Target IP: "))
+	fmt.Print(colorize(greenText, promptWithDefault("1) Target IP", draft.TargetIP)))
 	targetIP, err := readTrimmed(reader)
 	if err != nil {
 		return err
+	}
+	if targetIP == "" {
+		targetIP = draft.TargetIP
 	}
 	if _, err := netip.ParseAddr(targetIP); err != nil {
 		return fmt.Errorf("target IP must be a valid IP address: %v", err)
@@ -117,22 +130,45 @@ func askTargetIP(reader *bufio.Reader, draft *setupDraft) error {
 	return nil
 }
 
-func askPort(reader *bufio.Reader, draft *setupDraft) error {
-	fmt.Print(colorize(greenText, "2) Port: "))
+func askRemotePort(reader *bufio.Reader, draft *setupDraft) error {
+	fmt.Print(colorize(greenText, promptWithDefault("2) Remote port", draft.RemotePort)))
 	port, err := readTrimmed(reader)
 	if err != nil {
 		return err
 	}
+	if port == "" {
+		port = draft.RemotePort
+	}
 	if err := validatePort(port); err != nil {
 		return err
 	}
-	draft.Port = port
-	printLocalPortStatuses(port)
+	draft.RemotePort = port
+	return nil
+}
+
+func askLocalPort(reader *bufio.Reader, draft *setupDraft) error {
+	defaultLocalPort := draft.LocalPort
+	if defaultLocalPort == "" {
+		defaultLocalPort = draft.RemotePort
+	}
+	fmt.Print(colorize(greenText, promptWithDefault("3) Local port", defaultLocalPort)))
+	localPort, err := readTrimmed(reader)
+	if err != nil {
+		return err
+	}
+	if localPort == "" {
+		localPort = defaultLocalPort
+	}
+	if err := validatePort(localPort); err != nil {
+		return err
+	}
+	draft.LocalPort = localPort
+	printLocalPortStatuses(localPort)
 	return nil
 }
 
 func askProtocol(reader *bufio.Reader, draft *setupDraft) error {
-	fmt.Print(colorize(greenText, "3) Protocol [tcp]: "))
+	fmt.Print(colorize(greenText, promptWithDefault("4) Protocol", draft.Protocol)))
 	protocol, err := readTrimmed(reader)
 	if err != nil {
 		return err
@@ -145,17 +181,27 @@ func askProtocol(reader *bufio.Reader, draft *setupDraft) error {
 		return fmt.Errorf("protocol must be tcp or udp")
 	}
 	draft.Protocol = protocol
-	if draft.Port != "" {
-		printProtocolPortStatus(draft.Port, protocol)
+	if draft.LocalPort != "" {
+		printProtocolPortStatus(draft.LocalPort, protocol)
 	}
 	return nil
 }
 
 func askAllowedClients(reader *bufio.Reader, draft *setupDraft) error {
-	fmt.Print(colorize(greenText, "4) Allowed client IPs/CIDRs, comma separated [all]: "))
+	defaultAllowRaw := draft.AllowRaw
+	if defaultAllowRaw == "" {
+		defaultAllowRaw = "all"
+	}
+	fmt.Print(colorize(greenText, promptWithDefault("5) Allowed client IPs/CIDRs", defaultAllowRaw)))
 	allowRaw, err := readTrimmed(reader)
 	if err != nil {
 		return err
+	}
+	if allowRaw == "" {
+		allowRaw = draft.AllowRaw
+	}
+	if strings.EqualFold(allowRaw, "all") {
+		allowRaw = ""
 	}
 	if _, err := config.ParseAllowList(splitAndClean(allowRaw)); err != nil {
 		return err
@@ -167,40 +213,54 @@ func askAllowedClients(reader *bufio.Reader, draft *setupDraft) error {
 func askReviewChoice(reader *bufio.Reader) (string, error) {
 	fmt.Println(colorize(yellowText, "Change something before writing the service?"))
 	fmt.Println(colorize(cyanText, "  1) Change target IP"))
-	fmt.Println(colorize(cyanText, "  2) Change port"))
-	fmt.Println(colorize(cyanText, "  3) Change protocol"))
-	fmt.Println(colorize(cyanText, "  4) Change allowed clients"))
-	fmt.Println(colorize(cyanText, "  5) Continue"))
-	fmt.Print(colorize(greenText, "Choose [5]: "))
+	fmt.Println(colorize(cyanText, "  2) Change remote port"))
+	fmt.Println(colorize(cyanText, "  3) Change local port"))
+	fmt.Println(colorize(cyanText, "  4) Change protocol"))
+	fmt.Println(colorize(cyanText, "  5) Change allowed clients"))
+	fmt.Println(colorize(cyanText, "  6) Save and continue"))
+	fmt.Println(colorize(cyanText, "  7) Exit without saving"))
+	fmt.Print(colorize(greenText, "Choose [6]: "))
 
 	choice, err := readTrimmed(reader)
 	if err != nil {
 		return "", err
 	}
 	if choice == "" {
-		return "5", nil
+		return "6", nil
 	}
 	switch choice {
-	case "1", "2", "3", "4", "5":
+	case "1", "2", "3", "4", "5", "6", "7":
 		return choice, nil
 	default:
 		return "", fmt.Errorf("unknown setup menu option: %s", choice)
 	}
 }
 
-func applyReviewEdit(reader *bufio.Reader, draft *setupDraft, choice string) error {
+func applyReviewEdit(reader *bufio.Reader, appName string, draft *setupDraft, choice string) error {
+	var err error
 	switch choice {
 	case "1":
-		return askTargetIP(reader, draft)
+		err = askTargetIP(reader, draft)
 	case "2":
-		return askPort(reader, draft)
+		err = askRemotePort(reader, draft)
 	case "3":
-		return askProtocol(reader, draft)
+		err = askLocalPort(reader, draft)
 	case "4":
-		return askAllowedClients(reader, draft)
+		err = askProtocol(reader, draft)
+	case "5":
+		err = askAllowedClients(reader, draft)
 	default:
 		return nil
 	}
+	if err != nil {
+		return err
+	}
+	result, err := buildInteractiveResult(appName, *draft)
+	if err != nil {
+		return err
+	}
+	printConfigReview(result)
+	return nil
 }
 
 func buildInteractiveResult(appName string, draft setupDraft) (*InteractiveResult, error) {
@@ -209,7 +269,7 @@ func buildInteractiveResult(appName string, draft setupDraft) (*InteractiveResul
 		return nil, err
 	}
 
-	route := config.Route{LocalPort: draft.Port, RemoteIP: draft.TargetIP, RemotePort: draft.Port}
+	route := config.Route{LocalPort: draft.LocalPort, RemoteIP: draft.TargetIP, RemotePort: draft.RemotePort}
 	tcpRoutes := make([]config.Route, 0, 1)
 	udpRoutes := make([]config.Route, 0, 1)
 	if draft.Protocol == "udp" {
@@ -236,28 +296,32 @@ func buildInteractiveResult(appName string, draft setupDraft) (*InteractiveResul
 
 func printConfigReview(result *InteractiveResult) {
 	fmt.Println()
-	fmt.Println(colorize(purpleText, "Full configuration"))
+	fmt.Println(colorize(purpleText, "Connection"))
 	printRoutes("TCP", result.TCPRoutes)
 	printRoutes("UDP", result.UDPRoutes)
-	fmt.Printf(colorize(cyanText, "Allowed clients: %s\n"), allowListText(result.AllowFlags))
-	fmt.Printf(colorize(cyanText, "CLI local: %s\n"), commandValueOrNone(result.LocalFlag))
-	fmt.Printf(colorize(cyanText, "CLI remote: %s\n"), commandValueOrNone(result.RemoteFlag))
-	fmt.Printf(colorize(cyanText, "CLI proto: %s\n"), commandValueOrNone(result.ProtoFlag))
-	fmt.Printf(colorize(cyanText, "CLI allow flags: %s\n"), allowFlagsText(result.AllowFlags))
-	fmt.Printf(colorize(cyanText, "Log file: %s\n"), result.LogFile)
-	fmt.Printf(colorize(cyanText, "Autostart name: %s\n"), result.ServiceName)
+	fmt.Printf(colorize(cyanText, "     protocol %s carries the traffic\n"), strings.ToUpper(result.ProtoFlag))
+	fmt.Printf(colorize(cyanText, "     clients  %s\n"), allowListText(result.AllowFlags))
+	fmt.Printf(colorize(cyanText, "     log      %s\n"), result.LogFile)
+	fmt.Printf(colorize(cyanText, "     service  %s\n"), result.ServiceName)
+	fmt.Printf(colorize(cyanText, "     command  %s\n"), setupCommandText(result))
 	fmt.Println()
 }
 
 func printRoutes(label string, routes []config.Route) {
 	if len(routes) == 0 {
-		fmt.Printf(colorize(cyanText, "%s route: none\n"), label)
 		return
 	}
 
 	for _, route := range routes {
-		fmt.Printf(colorize(cyanText, "%s route: local %s -> %s:%s\n"), label, route.LocalPort, route.RemoteIP, route.RemotePort)
+		fmt.Printf(colorize(cyanText, "     :%s on this machine  ->  %s:%s\n"), route.LocalPort, route.RemoteIP, route.RemotePort)
 	}
+}
+
+func promptWithDefault(label, currentValue string) string {
+	if currentValue == "" {
+		return label + ": "
+	}
+	return fmt.Sprintf("%s [%s]: ", label, currentValue)
 }
 
 func allowListText(values []string) string {
@@ -267,23 +331,16 @@ func allowListText(values []string) string {
 	return strings.Join(values, ", ")
 }
 
-func allowFlagsText(values []string) string {
-	if len(values) == 0 {
-		return "none"
+func setupCommandText(result *InteractiveResult) string {
+	parts := []string{
+		"-local=" + result.LocalFlag,
+		"-remote=" + result.RemoteFlag,
+		"-proto=" + result.ProtoFlag,
 	}
-
-	flags := make([]string, 0, len(values))
-	for _, value := range values {
-		flags = append(flags, "-allow="+value)
+	for _, allowFlag := range result.AllowFlags {
+		parts = append(parts, "-allow="+allowFlag)
 	}
-	return strings.Join(flags, " ")
-}
-
-func commandValueOrNone(value string) string {
-	if value == "" {
-		return "none"
-	}
-	return value
+	return strings.Join(parts, " ")
 }
 
 func validatePort(port string) error {

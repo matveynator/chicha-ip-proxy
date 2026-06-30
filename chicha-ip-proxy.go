@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matveynator/chicha-ip-proxy/pkg/branding"
 	"github.com/matveynator/chicha-ip-proxy/pkg/config"
 	"github.com/matveynator/chicha-ip-proxy/pkg/limits"
 	"github.com/matveynator/chicha-ip-proxy/pkg/logging"
@@ -63,6 +65,10 @@ func main() {
 	if len(tcpRoutes) == 0 && len(udpRoutes) == 0 {
 		interactiveResult, err := setup.RunInteractiveSetup("chicha-ip-proxy")
 		if err != nil {
+			if errors.Is(err, setup.ErrSetupCancelled) {
+				fmt.Println("Setup cancelled.")
+				return
+			}
 			log.Fatalf("Interactive setup failed: %v", err)
 		}
 
@@ -81,21 +87,7 @@ func main() {
 		log.Fatal("Error: provide -local and -remote, use legacy -routes/-udp-routes, or run without route flags for interactive setup.")
 	}
 
-	// Print a concise summary before the workers launch to make deployments traceable.
-	fmt.Println("========== CHICHA IP PROXY ==========")
-	fmt.Println("TCP Routes:")
-	for _, route := range tcpRoutes {
-		fmt.Printf("  LocalPort=%s -> RemoteIP=%s RemotePort=%s\n", route.LocalPort, route.RemoteIP, route.RemotePort)
-	}
-	fmt.Println("UDP Routes:")
-	for _, route := range udpRoutes {
-		fmt.Printf("  LocalPort=%s -> RemoteIP=%s RemotePort=%s\n", route.LocalPort, route.RemoteIP, route.RemotePort)
-	}
-	fmt.Printf("Log file: %s\n", actualLogFile)
-	fmt.Printf("Log rotation frequency: %v\n", *rotationFrequency)
-	fmt.Printf("Allowed clients: %s\n", allowListSummary(allowList))
-	fmt.Println("Speed-up notice: system limits will be tuned on startup to keep the proxy responsive.")
-	fmt.Println("======================================")
+	printStartupSummary(tcpRoutes, udpRoutes, allowList, actualLogFile)
 
 	logger, file, err := logging.SetupLogger(actualLogFile)
 	if err != nil {
@@ -135,6 +127,18 @@ func main() {
 	}
 
 	select {}
+}
+
+func printStartupSummary(tcpRoutes, udpRoutes []config.Route, allowList config.AllowList, logFile string) {
+	fmt.Print(branding.Banner)
+	for _, route := range tcpRoutes {
+		fmt.Printf("tcp  :%s -> %s:%s\n", route.LocalPort, route.RemoteIP, route.RemotePort)
+	}
+	for _, route := range udpRoutes {
+		fmt.Printf("udp  :%s -> %s:%s\n", route.LocalPort, route.RemoteIP, route.RemotePort)
+	}
+	fmt.Printf("allow %s\n", allowListSummary(allowList))
+	fmt.Printf("log   %s\n\n", logFile)
 }
 
 func parseRoutesFromFlags(legacyTCPRoutes, legacyUDPRoutes string, simpleFlags config.SimpleRouteFlags) ([]config.Route, []config.Route, error) {
@@ -179,24 +183,21 @@ func allowListSummary(allowList config.AllowList) string {
 
 // showFlagHelp displays CLI usage and runnable examples for scripted runs.
 func showFlagHelp() {
+	fmt.Print(branding.Banner)
 	fmt.Println("Usage:")
 	fmt.Println("  chicha-ip-proxy -local=PORT -remote=IP[:PORT] [options]")
-	fmt.Println("  chicha-ip-proxy")
+	fmt.Println("  chicha-ip-proxy        # setup wizard")
 	fmt.Println()
-	fmt.Println("Options:")
-	fmt.Println("  -local PORT       Local port to listen on")
-	fmt.Println("  -remote IP[:PORT] Remote target IP and optional port")
-	fmt.Println("  -proto tcp|udp    Protocol to proxy (default tcp)")
-	fmt.Println("  -allow IP|CIDR    Client source allowed to use the proxy; repeat for multiple sources")
-	fmt.Println("  -log PATH         Path to the log file (default chicha-ip-proxy.log)")
-	fmt.Println("  -rotation DURATION Log rotation frequency (default 24h0m0s)")
-	fmt.Println("  -version          Print the version and exit")
-	fmt.Println()
-	fmt.Println("Run without route flags to open the interactive setup wizard.")
+	fmt.Println("Flags:")
+	fmt.Println("  -local PORT")
+	fmt.Println("  -remote IP[:PORT]")
+	fmt.Println("  -proto tcp|udp")
+	fmt.Println("  -allow IP|CIDR")
+	fmt.Println("  -log PATH")
+	fmt.Println("  -rotation 24h")
+	fmt.Println("  -version")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  TCP: ./chicha-ip-proxy -local=8080 -remote=203.0.113.10 -allow=198.51.100.7")
-	fmt.Println("  UDP: ./chicha-ip-proxy -local=5353 -remote=203.0.113.20:53 -proto=udp -allow=10.0.0.0/24")
-	fmt.Println()
-	fmt.Println("Compatibility: existing multi-route scripts remain supported.")
+	fmt.Println("  chicha-ip-proxy -local=8080 -remote=203.0.113.10 -allow=198.51.100.7")
+	fmt.Println("  chicha-ip-proxy -local=5353 -remote=203.0.113.20:53 -proto=udp")
 }

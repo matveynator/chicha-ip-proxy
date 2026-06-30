@@ -33,13 +33,14 @@ chicha-ip-proxy
 The wizard asks for:
 
 1. target IP
-2. port
-3. protocol, default `tcp`
-4. allowed client IPs or CIDR ranges, optional
+2. remote port
+3. local port, default is the same as remote port
+4. protocol, default `tcp`
+5. allowed client IPs or CIDR ranges, optional
 
 When you enter the local port, the wizard immediately checks whether that port is free or already busy for TCP and UDP.
 
-Then it shows the full generated configuration and lets you change any field before installing.
+Then it shows a simple connection diagram. You can change any field, save and continue, press `Ctrl+C`, or choose exit without saving.
 
 By default, the wizard can:
 
