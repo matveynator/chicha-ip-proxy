@@ -7,6 +7,8 @@ import (
 	"net"
 	"runtime"
 	"time"
+
+	"github.com/matveynator/chicha-ip-proxy/pkg/config"
 )
 
 // udpMessage represents a single datagram from a client.
@@ -35,7 +37,7 @@ type sessionEvent struct {
 
 // StartUDPProxy listens for UDP datagrams and forwards them to the target endpoint.
 // Work is coordinated by a session manager goroutine so there are no mutexes and no busy dialing.
-func StartUDPProxy(listenAddr, targetAddr string, logger *log.Logger) {
+func StartUDPProxy(listenAddr, targetAddr string, allowList config.AllowList, logger *log.Logger) {
 	conn, err := net.ListenPacket("udp", listenAddr)
 	if err != nil {
 		logger.Fatalf("Failed to start UDP proxy on %s: %v", listenAddr, err)
@@ -52,6 +54,12 @@ func StartUDPProxy(listenAddr, targetAddr string, logger *log.Logger) {
 		n, addr, err := conn.ReadFrom(buffer)
 		if err != nil {
 			logger.Printf("Error reading UDP packet on %s: %v", listenAddr, err)
+			continue
+		}
+
+		clientIP, ok := remoteAddrIP(addr)
+		if !ok || !allowList.Allows(clientIP) {
+			logger.Printf("Rejected UDP packet from %s on %s: source IP is not allowed", addr.String(), listenAddr)
 			continue
 		}
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -26,6 +27,24 @@ type linuxInfo struct {
 func OfferAutostartSetup(appName string, interactive *InteractiveResult, rotation time.Duration) (*SystemdResult, error) {
 	reader := bufio.NewReader(os.Stdin)
 
+	switch runtime.GOOS {
+	case "linux":
+		return offerLinuxAutostartSetup(appName, interactive, rotation, reader)
+	case "darwin":
+		return OfferLaunchdSetup(appName, interactive, rotation, reader)
+	case "freebsd":
+		return OfferBSDRCSetup(appName, interactive, rotation, reader, "freebsd")
+	case "openbsd":
+		return OfferBSDRCSetup(appName, interactive, rotation, reader, "openbsd")
+	case "windows":
+		return OfferWindowsTaskSetup(appName, interactive, rotation, reader)
+	default:
+		fmt.Printf("No supported autostart integration for %s; skipping autostart configuration.\n", runtime.GOOS)
+		return &SystemdResult{FollowLogs: false}, nil
+	}
+}
+
+func offerLinuxAutostartSetup(appName string, interactive *InteractiveResult, rotation time.Duration, reader *bufio.Reader) (*SystemdResult, error) {
 	info := readLinuxInfo()
 	if info.ID != "" || info.VersionID != "" {
 		fmt.Printf("Detected Linux distribution: %s %s\n", info.ID, info.VersionID)
@@ -53,12 +72,11 @@ func OfferAutostartSetup(appName string, interactive *InteractiveResult, rotatio
 // OfferInitSetup creates a SysV-style init script and optionally enables and starts it.
 // Using a shared reader keeps the input flow consistent with systemd setup.
 func OfferInitSetup(appName string, interactive *InteractiveResult, rotation time.Duration, reader *bufio.Reader) (*SystemdResult, error) {
-	fmt.Printf("Would you like to create a legacy init script for '%s'? (y/N): ", interactive.ServiceName)
-	createAnswer, err := readTrimmed(reader)
+	createInit, err := askYesDefault(reader, fmt.Sprintf("Create a legacy init script for '%s'?", interactive.ServiceName))
 	if err != nil {
 		return nil, err
 	}
-	if strings.ToLower(createAnswer) != "y" {
+	if !createInit {
 		return &SystemdResult{FollowLogs: false}, nil
 	}
 
@@ -74,37 +92,173 @@ func OfferInitSetup(appName string, interactive *InteractiveResult, rotation tim
 		return nil, fmt.Errorf("failed to write init script: %v", err)
 	}
 
-	fmt.Print("Enable the init script so it starts on boot? (y/N): ")
-	enableAnswer, err := readTrimmed(reader)
+	enableInit, err := askYesDefault(reader, "Enable the init script so it starts on boot?")
 	if err != nil {
 		return nil, err
 	}
 
-	if strings.ToLower(enableAnswer) == "y" {
+	if enableInit {
 		if err := enableInitScript(initName); err != nil {
 			return nil, err
 		}
 	}
 
-	fmt.Print("Start the service now? (y/N): ")
-	startAnswer, err := readTrimmed(reader)
+	startInit, err := askYesDefault(reader, "Start the service now?")
 	if err != nil {
 		return nil, err
 	}
 
-	if strings.ToLower(startAnswer) == "y" {
+	if startInit {
 		if err := runInitCommand(initName, "start"); err != nil {
 			return nil, err
 		}
 	}
 
-	fmt.Print("Follow the log file now? (y/N): ")
-	followAnswer, err := readTrimmed(reader)
+	followLogs, err := askYesDefault(reader, "Follow the log file now?")
 	if err != nil {
 		return nil, err
 	}
 
-	return &SystemdResult{FollowLogs: strings.ToLower(followAnswer) == "y"}, nil
+	return &SystemdResult{FollowLogs: followLogs}, nil
+}
+
+// ----- macOS launchd workflow -----
+
+// OfferLaunchdSetup creates a LaunchDaemon plist and optionally bootstraps it.
+func OfferLaunchdSetup(appName string, interactive *InteractiveResult, rotation time.Duration, reader *bufio.Reader) (*SystemdResult, error) {
+	createLaunchd, err := askYesDefault(reader, fmt.Sprintf("Create a macOS launchd daemon '%s'?", interactive.ServiceName))
+	if err != nil {
+		return nil, err
+	}
+	if !createLaunchd {
+		return &SystemdResult{FollowLogs: false}, nil
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve executable path: %v", err)
+	}
+
+	plistPath := filepath.Join("/Library/LaunchDaemons", interactive.ServiceName+".plist")
+	plistContent := buildLaunchdPlist(appName, interactive, rotation, executable)
+	if err := os.WriteFile(plistPath, []byte(plistContent), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write launchd plist: %v", err)
+	}
+
+	enableLaunchd, err := askYesDefault(reader, "Enable the launchd daemon so it starts on boot?")
+	if err != nil {
+		return nil, err
+	}
+	if enableLaunchd {
+		if err := runCommand("launchctl", "bootstrap", "system", plistPath); err != nil {
+			return nil, err
+		}
+	}
+
+	startLaunchd, err := askYesDefault(reader, "Start the daemon now?")
+	if err != nil {
+		return nil, err
+	}
+	if startLaunchd {
+		if err := runCommand("launchctl", "kickstart", "-k", "system/"+interactive.ServiceName); err != nil {
+			return nil, err
+		}
+	}
+
+	followLogs, err := askYesDefault(reader, "Follow the log file now?")
+	if err != nil {
+		return nil, err
+	}
+	return &SystemdResult{FollowLogs: followLogs}, nil
+}
+
+// ----- BSD rc.d workflow -----
+
+// OfferBSDRCSetup creates an rc.d script for FreeBSD or OpenBSD and optionally enables it.
+func OfferBSDRCSetup(appName string, interactive *InteractiveResult, rotation time.Duration, reader *bufio.Reader, osName string) (*SystemdResult, error) {
+	createRC, err := askYesDefault(reader, fmt.Sprintf("Create a %s rc.d service '%s'?", osName, interactive.ServiceName))
+	if err != nil {
+		return nil, err
+	}
+	if !createRC {
+		return &SystemdResult{FollowLogs: false}, nil
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve executable path: %v", err)
+	}
+
+	scriptPath := bsdRCPath(interactive.ServiceName, osName)
+	scriptContent := buildBSDRCScript(appName, interactive, rotation, executable, osName)
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+		return nil, fmt.Errorf("failed to write rc.d script: %v", err)
+	}
+
+	enableRC, err := askYesDefault(reader, "Enable the rc.d service so it starts on boot?")
+	if err != nil {
+		return nil, err
+	}
+	if enableRC {
+		if err := enableBSDRC(interactive.ServiceName, osName); err != nil {
+			return nil, err
+		}
+	}
+
+	startRC, err := askYesDefault(reader, "Start the service now?")
+	if err != nil {
+		return nil, err
+	}
+	if startRC {
+		if err := startBSDRC(interactive.ServiceName, osName); err != nil {
+			return nil, err
+		}
+	}
+
+	followLogs, err := askYesDefault(reader, "Follow the log file now?")
+	if err != nil {
+		return nil, err
+	}
+	return &SystemdResult{FollowLogs: followLogs}, nil
+}
+
+// ----- Windows Task Scheduler workflow -----
+
+// OfferWindowsTaskSetup uses Task Scheduler because console binaries are not native Windows services.
+func OfferWindowsTaskSetup(appName string, interactive *InteractiveResult, rotation time.Duration, reader *bufio.Reader) (*SystemdResult, error) {
+	createTask, err := askYesDefault(reader, fmt.Sprintf("Create a Windows startup task '%s'?", interactive.ServiceName))
+	if err != nil {
+		return nil, err
+	}
+	if !createTask {
+		return &SystemdResult{FollowLogs: false}, nil
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve executable path: %v", err)
+	}
+
+	command := windowsTaskCommand(executable, buildArgs(interactive, rotation))
+	if err := runCommand("schtasks", "/Create", "/F", "/TN", interactive.ServiceName, "/SC", "ONSTART", "/RU", "SYSTEM", "/RL", "HIGHEST", "/TR", command); err != nil {
+		return nil, err
+	}
+
+	startTask, err := askYesDefault(reader, "Start the task now?")
+	if err != nil {
+		return nil, err
+	}
+	if startTask {
+		if err := runCommand("schtasks", "/Run", "/TN", interactive.ServiceName); err != nil {
+			return nil, err
+		}
+	}
+
+	followLogs, err := askYesDefault(reader, "Follow the log file now?")
+	if err != nil {
+		return nil, err
+	}
+	return &SystemdResult{FollowLogs: followLogs}, nil
 }
 
 // ----- Detection helpers -----
@@ -241,6 +395,132 @@ exit 0
 `, initName, appName, appName, executable, strings.Join(args, " "), initName)
 }
 
+// buildLaunchdPlist renders a LaunchDaemon with explicit arguments instead of shell parsing.
+func buildLaunchdPlist(appName string, interactive *InteractiveResult, rotation time.Duration, executable string) string {
+	args := buildArgs(interactive, rotation)
+	arguments := make([]string, 0, len(args)+1)
+	arguments = append(arguments, executable)
+	arguments = append(arguments, args...)
+
+	lines := make([]string, 0, len(arguments))
+	for _, argument := range arguments {
+		lines = append(lines, fmt.Sprintf("    <string>%s</string>", xmlEscape(argument)))
+	}
+
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>%s</string>
+  <key>ProgramArguments</key>
+  <array>
+%s
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>%s</string>
+  <key>StandardErrorPath</key>
+  <string>%s</string>
+</dict>
+</plist>
+`, xmlEscape(interactive.ServiceName), strings.Join(lines, "\n"), xmlEscape(interactive.LogFile), xmlEscape(interactive.LogFile))
+}
+
+// buildBSDRCScript renders a small rc.d script for systems that use rc.subr.
+func buildBSDRCScript(appName string, interactive *InteractiveResult, rotation time.Duration, executable, osName string) string {
+	name := shellIdentifier(interactive.ServiceName)
+	args := buildArgs(interactive, rotation)
+
+	if osName == "openbsd" {
+		return fmt.Sprintf(`#!/bin/ksh
+
+daemon="%s"
+daemon_flags="%s"
+
+. /etc/rc.d/rc.subr
+
+rc_cmd $1
+`, executable, strings.Join(args, " "))
+	}
+
+	return fmt.Sprintf(`#!/bin/sh
+
+# PROVIDE: %s
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="%s"
+rcvar="%s_enable"
+command="%s"
+command_args="%s"
+pidfile="/var/run/%s.pid"
+
+load_rc_config "$name"
+: ${%s_enable:="NO"}
+
+run_rc_command "$1"
+`, name, name, name, executable, strings.Join(args, " "), name, name)
+}
+
+func bsdRCPath(serviceName, osName string) string {
+	name := shellIdentifier(serviceName)
+	if osName == "freebsd" {
+		return filepath.Join("/usr/local/etc/rc.d", name)
+	}
+	return filepath.Join("/etc/rc.d", name)
+}
+
+func enableBSDRC(serviceName, osName string) error {
+	name := shellIdentifier(serviceName)
+	if osName == "freebsd" {
+		return runCommand("sysrc", name+"_enable=YES")
+	}
+	return runCommand("rcctl", "enable", name)
+}
+
+func startBSDRC(serviceName, osName string) error {
+	name := shellIdentifier(serviceName)
+	if osName == "freebsd" {
+		return runCommand("service", name, "start")
+	}
+	return runCommand("rcctl", "start", name)
+}
+
+func windowsTaskCommand(executable string, args []string) string {
+	parts := make([]string, 0, len(args)+1)
+	parts = append(parts, windowsCommandQuote(executable))
+	for _, arg := range args {
+		parts = append(parts, windowsCommandQuote(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+func windowsCommandQuote(value string) string {
+	return `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
+}
+
+func shellIdentifier(value string) string {
+	replacer := strings.NewReplacer("-", "_", ".", "_")
+	return replacer.Replace(value)
+}
+
+func xmlEscape(value string) string {
+	replacer := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&apos;",
+	)
+	return replacer.Replace(value)
+}
+
 // ----- Init system integration -----
 
 // enableInitScript hooks the script into the default runlevels using available tools.
@@ -283,13 +563,34 @@ func runCommand(name string, args ...string) error {
 // Having a single formatter ensures consistent startup arguments.
 func buildArgs(interactive *InteractiveResult, rotation time.Duration) []string {
 	args := make([]string, 0)
-	if interactive.RoutesFlag != "" {
-		args = append(args, fmt.Sprintf("-routes=%s", interactive.RoutesFlag))
+	if interactive.LocalFlag != "" && interactive.RemoteFlag != "" {
+		args = append(args, fmt.Sprintf("-local=%s", interactive.LocalFlag))
+		args = append(args, fmt.Sprintf("-remote=%s", interactive.RemoteFlag))
+		if interactive.ProtoFlag != "" && interactive.ProtoFlag != "tcp" {
+			args = append(args, fmt.Sprintf("-proto=%s", interactive.ProtoFlag))
+		}
+	} else {
+		if interactive.RoutesFlag != "" {
+			args = append(args, fmt.Sprintf("-routes=%s", interactive.RoutesFlag))
+		}
+		if interactive.UDPRoutesFlag != "" {
+			args = append(args, fmt.Sprintf("-udp-routes=%s", interactive.UDPRoutesFlag))
+		}
 	}
-	if interactive.UDPRoutesFlag != "" {
-		args = append(args, fmt.Sprintf("-udp-routes=%s", interactive.UDPRoutesFlag))
+	for _, allowValue := range interactive.AllowFlags {
+		args = append(args, fmt.Sprintf("-allow=%s", allowValue))
 	}
 	args = append(args, fmt.Sprintf("-log=%s", interactive.LogFile))
 	args = append(args, fmt.Sprintf("-rotation=%s", rotation.String()))
 	return args
+}
+
+// askYesDefault keeps destructive-looking setup prompts explicit while matching the installer's happy path.
+func askYesDefault(reader *bufio.Reader, prompt string) (bool, error) {
+	fmt.Print(colorize(greenText, prompt+" (Y/n): "))
+	answer, err := readTrimmed(reader)
+	if err != nil {
+		return false, err
+	}
+	return strings.ToLower(answer) != "n", nil
 }

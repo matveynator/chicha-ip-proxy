@@ -1,40 +1,145 @@
-## On **Linux**, everything is automatic.
+# Chicha IP Proxy
 
-This single command will:
+Small TCP/UDP port proxy with an automatic setup wizard.
 
-* download the binary
-* install it system-wide
-* start interactive setup
-* create a **systemd service**
-* enable autostart
-* start forwarding immediately
+Run it without arguments, answer a few questions, and it can install itself into the right autostart system for your operating system.
 
-### Run as root user:
 ```bash
-curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 > /usr/local/bin/chicha-ip-proxy; chmod +x /usr/local/bin/chicha-ip-proxy; /usr/local/bin/chicha-ip-proxy;
+chicha-ip-proxy
 ```
 
-### What happens next
+No config files are required.
 
-* Interactive wizard starts
-* You choose:
+## What It Does
 
-  * target IP
-  * TCP / UDP
-  * ports
-* Proxy automatically:
+Chicha IP Proxy opens a local port and forwards traffic to another IP address.
 
-  * creates a **systemd service**
-  * enables it on boot
-  * starts it immediately
-  * sets up rotating logs
+Common uses:
 
-➡️ **No config files. No manual systemd work.**
+* expose a service from another server through this machine
+* forward one public port to one private IP
+* create a simple TCP or UDP relay
+* restrict who can connect by source IP
+* install a persistent proxy service without writing system files by hand
 
----
+## Automatic Setup
 
-## Download for All Platforms
+Start the binary with no route flags:
 
-👉 [https://github.com/matveynator/chicha-ip-proxy/releases/](https://github.com/matveynator/chicha-ip-proxy/releases/)
+```bash
+chicha-ip-proxy
+```
 
+The wizard asks for:
 
+1. target IP
+2. port
+3. protocol, default `tcp`
+4. allowed client IPs or CIDR ranges, optional
+
+When you enter the local port, the wizard immediately checks whether that port is free or already busy for TCP and UDP.
+
+Then it shows the full generated configuration and lets you change any field before installing.
+
+By default, the wizard can:
+
+* create an autostart entry
+* enable it on boot
+* start it immediately
+* follow the log file
+
+Supported autostart systems:
+
+* Linux: `systemd` or SysV init
+* macOS: `launchd`
+* FreeBSD: `rc.d`
+* OpenBSD: `rc.d` / `rcctl`
+* Windows: Task Scheduler
+
+## Quick Examples
+
+Forward local TCP port `8080` to `203.0.113.10:8080`:
+
+```bash
+chicha-ip-proxy -local=8080 -remote=203.0.113.10
+```
+
+Forward local TCP port `8080` to remote port `80`:
+
+```bash
+chicha-ip-proxy -local=8080 -remote=203.0.113.10:80
+```
+
+Forward UDP DNS traffic:
+
+```bash
+chicha-ip-proxy -local=5353 -remote=203.0.113.20:53 -proto=udp
+```
+
+Allow only one client IP:
+
+```bash
+chicha-ip-proxy -local=8080 -remote=203.0.113.10 -allow=198.51.100.7
+```
+
+Allow a whole network:
+
+```bash
+chicha-ip-proxy -local=8080 -remote=203.0.113.10 -allow=10.0.0.0/24
+```
+
+Allow several sources:
+
+```bash
+chicha-ip-proxy -local=8080 -remote=203.0.113.10 -allow=198.51.100.7 -allow=10.0.0.0/24
+```
+
+If no `-allow` flag is provided, all client IPs are allowed.
+
+## Install On Linux
+
+Run as root:
+
+```bash
+curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 > /usr/local/bin/chicha-ip-proxy
+chmod +x /usr/local/bin/chicha-ip-proxy
+chicha-ip-proxy
+```
+
+The wizard will guide the rest.
+
+## Flags
+
+```text
+-local PORT
+    Local port to listen on.
+
+-remote IP[:PORT]
+    Remote target IP and optional port.
+    If the port is omitted, the local port is used.
+
+-proto tcp|udp
+    Protocol to proxy. Default is tcp.
+
+-allow IP|CIDR
+    Source IP or network allowed to connect.
+    Repeat the flag to allow multiple sources.
+
+-log PATH
+    Log file path.
+
+-rotation DURATION
+    Log rotation interval, for example 24h or 1h.
+```
+
+## Notes
+
+Denied TCP clients receive a reset. Denied UDP packets are dropped before a proxy session is created.
+
+Legacy `-routes` and `-udp-routes` flags still work for existing multi-route scripts, but new setups should use `-local`, `-remote`, and `-proto`.
+
+## Downloads
+
+Releases are available here:
+
+[https://github.com/matveynator/chicha-ip-proxy/releases/](https://github.com/matveynator/chicha-ip-proxy/releases/)

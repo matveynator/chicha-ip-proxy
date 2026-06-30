@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -16,6 +17,13 @@ const DefaultMaxSizeBytes int64 = 100 * 1024 * 1024
 // SetupLogger opens the target file and returns a standard logger alongside the underlying file handle.
 // Returning the file lets the caller manage its lifecycle without hidden global state.
 func SetupLogger(logFile string) (*log.Logger, *os.File, error) {
+	logDir := filepath.Dir(logFile)
+	if logDir != "." {
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			return nil, nil, fmt.Errorf("failed to create log directory '%s': %v", logDir, err)
+		}
+	}
+
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open log file '%s': %v", logFile, err)
