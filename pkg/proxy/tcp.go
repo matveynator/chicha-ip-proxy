@@ -85,6 +85,12 @@ func remoteAddrIP(addr net.Addr) (netip.Addr, bool) {
 // rejectTCPConnectionWithReset sends TCP RST when the platform exposes a TCP connection.
 // Resetting denied clients makes allowlist failures immediate and avoids a graceful half-open flow.
 func rejectTCPConnectionWithReset(conn net.Conn, logger *log.Logger) {
+	resetTCPConnection(conn, logger)
+}
+
+// resetTCPConnection makes proxy-side failures visible to clients as immediate TCP failures.
+// This keeps denied clients and unreachable upstream targets from looking like silent hangs.
+func resetTCPConnection(conn net.Conn, logger *log.Logger) {
 	tcpConn, ok := conn.(*net.TCPConn)
 	if ok {
 		if err := tcpConn.SetLinger(0); err != nil {
@@ -125,6 +131,7 @@ func handleTCPConnection(job tcpConnJob, targetAddr string, logger *log.Logger) 
 	serverConn, err := dialer.Dial("tcp", targetAddr)
 	if err != nil {
 		logger.Printf("Failed to connect to TCP server %s: %v", targetAddr, err)
+		resetTCPConnection(conn, logger)
 		return
 	}
 	defer serverConn.Close()
