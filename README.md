@@ -4,8 +4,7 @@
  BLAZING FAST and SECURE TCP/UDP port proxy written in GO.
 
 
-<img width="60%" alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/0dc3b863-583f-41ea-b6a4-cfcf773a249c" />
-
+<img width="100%"  alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/b23ffd1c-aafc-4534-a8a5-1492ce371def" />
 <br>
 
 ![TCP](https://img.shields.io/badge/TCP-proxy-green)
