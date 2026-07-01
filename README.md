@@ -41,7 +41,7 @@ Choose OS and architecture. Install commands are one-liners with Copy button.
 
 ---
 
-<details open>
+<details>
 <summary>
   <img width="42" alt="linux" src="https://github.com/user-attachments/assets/bf3141b6-4c93-4fd6-b2d1-421b79876dcb" />
   <b><big>Linux</big></b>
