@@ -69,11 +69,11 @@ sudo chicha-ip-proxy
 | Apple Silicon / arm64 | [chicha-ip-proxy-darwin-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64) |
 
 ```bash
-curl -L -o chicha-ip-proxy \
+sudo curl -L -o /usr/local/bin/chicha-ip-proxy \
   https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64
 
-chmod +x chicha-ip-proxy
-sudo ./chicha-ip-proxy
+sudo chmod +x /usr/local/bin/chicha-ip-proxy
+sudo chicha-ip-proxy
 ```
 
 </details>
