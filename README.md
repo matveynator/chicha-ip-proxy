@@ -14,7 +14,6 @@ TCP / UDP proxy
 > **EN:** small TCP/UDP port proxy.
 
 ---
-
 ## Downloads / Скачать
 
 Откройте нужную платформу и скачайте подходящую сборку.  
@@ -33,7 +32,7 @@ Open your platform and download the right build.
 
 <details open>
 <summary>
-  <img src="https://sitebrush.com/04b158d78c93b65c714bb6256da221a4.png" width="22" alt="Linux">
+  <img width="50" alt="linux" src="https://github.com/user-attachments/assets/bf3141b6-4c93-4fd6-b2d1-421b79876dcb" />
   <b>Linux</b> — recommended / рекомендуется
 </summary>
 
@@ -58,7 +57,7 @@ sudo chicha-ip-proxy
 
 <details>
 <summary>
-  <img src="https://sitebrush.com/fbad588e1b8c94b6b80708bc9917706e.png" width="22" alt="macOS">
+  <img width="40" alt="mac" src="https://github.com/user-attachments/assets/946102b8-f043-494d-809a-a589e536ee9a" />
   <b>macOS</b>
 </summary>
 
@@ -83,7 +82,7 @@ sudo ./chicha-ip-proxy
 
 <details>
 <summary>
-  <img src="https://sitebrush.com/66aab89d1af641ee0ae190f6b3ea4e09.png" width="22" alt="Windows">
+  <img width="50" alt="windows" src="https://github.com/user-attachments/assets/f6044001-95b0-4500-a4f6-1c3b08eb65fb" />
   <b>Windows</b>
 </summary>
 
@@ -115,7 +114,7 @@ Invoke-WebRequest `
 
 <details>
 <summary>
-  <img src="https://sitebrush.com/c1ce8baa90a2ffd348069e69fa4fda93.png" width="22" alt="FreeBSD">
+  <img width="50" alt="freebsd" src="https://github.com/user-attachments/assets/d35baaac-d296-41b1-a281-55dc761328e9" />
   <b>FreeBSD</b>
 </summary>
 
@@ -140,7 +139,7 @@ sudo chicha-ip-proxy
 
 <details>
 <summary>
-  <img src="https://sitebrush.com/e3124d65b5feeb6af8ec8f882b167a35.png" width="22" alt="OpenBSD">
+  <img width="50" alt="openbsd" src="https://github.com/user-attachments/assets/11633d7e-5744-46da-ad2f-6e49c69e51de" />
   <b>OpenBSD</b>
 </summary>
 
@@ -170,13 +169,13 @@ sudo chicha-ip-proxy
 
 ## Как пользоваться / Usage
 
-Запустите без параметров:
+Запустите без параметров / Run without arguments:
 
 ```bash
 sudo chicha-ip-proxy
 ```
 
-Мастер спросит:
+Мастер спросит / The wizard asks for:
 
 ```text
 target IP
@@ -186,25 +185,8 @@ tcp / udp
 allowed client IPs
 ```
 
-После этого можно сохранить прокси в автозапуск.
+После этого можно сохранить прокси в автозапуск / Then it can save the proxy as an autostart service.
 
-Run without arguments:
-
-```bash
-sudo chicha-ip-proxy
-```
-
-The wizard asks for:
-
-```text
-target IP
-remote port
-local port
-tcp / udp
-allowed client IPs
-```
-
-Then it can save the proxy as an autostart service.
 
 ---
 
@@ -219,7 +201,7 @@ sudo chicha-ip-proxy -local=8080 -remote=203.0.113.10:80 -proto=tcp
 ### UDP DNS
 
 ```bash
-sudo chicha-ip-proxy -local=54 -remote=8.8.8.8:53 -proto=udp
+sudo chicha-ip-proxy -local=53 -remote=8.8.8.8:53 -proto=udp
 ```
 
 ### IPv6 target
@@ -228,7 +210,7 @@ sudo chicha-ip-proxy -local=54 -remote=8.8.8.8:53 -proto=udp
 sudo chicha-ip-proxy -local=8443 -remote=[2001:db8::10]:443 -proto=tcp
 ```
 
-### Allow only one client IP
+### Allow only from one client IP / Ограничить по 1 айпи:
 
 ```bash
 sudo chicha-ip-proxy -local=8080 -remote=203.0.113.10:80 -allow=198.51.100.7
