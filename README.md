@@ -1,12 +1,7 @@
 <div align="center">
 
 # chicha-ip-proxy
-
-### TCP/UDP ports proxy
-<sub>
-<b>RU:</b> ОЧЕНЬ БЫСТРЫЙ TCP/UDP прокси портов написанный на GO.  
-<b>EN:</b> BLAZING FAST TCP/UDP port proxy written in GO.
-</sub>
+ BLAZING FAST and SECURE TCP/UDP port proxy written in GO.
 
 
 <img width="60%" alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/0dc3b863-583f-41ea-b6a4-cfcf773a249c" />
