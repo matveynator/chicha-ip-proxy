@@ -17,66 +17,154 @@ TCP / UDP proxy
 
 ## Downloads / Скачать
 
-### Linux
+Откройте нужную платформу и скачайте подходящую сборку.  
+Open your platform and download the right build.
 
-| Arch | Download |
-|---|---|
-| amd64 | [Linux amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64) |
-| arm64 | [Linux arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-arm64) |
-
-### macOS
-
-| Arch | Download |
-|---|---|
-| Intel / amd64 | [macOS Intel](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-amd64) |
-| Apple Silicon / arm64 | [macOS Apple Silicon](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64) |
-
-### Windows
-
-| Arch | Download |
-|---|---|
-| amd64 | [Windows amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-windows-amd64.exe) |
-| arm64 | [Windows arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-windows-arm64.exe) |
-
-### FreeBSD
-
-| Arch | Download |
-|---|---|
-| amd64 | [FreeBSD amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-amd64) |
-| arm64 | [FreeBSD arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-arm64) |
-
-### OpenBSD
-
-| Arch | Download |
-|---|---|
-| amd64 | [OpenBSD amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-amd64) |
-| arm64 | [OpenBSD arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-arm64) |
-
-**All releases / Все релизы:**  
-[github.com/matveynator/chicha-ip-proxy/releases](https://github.com/matveynator/chicha-ip-proxy/releases/)
+<p>
+  <a href="https://github.com/matveynator/chicha-ip-proxy/releases/latest">
+    <img alt="Latest release" src="https://img.shields.io/badge/latest-release-blue">
+  </a>
+  <a href="https://github.com/matveynator/chicha-ip-proxy/releases/">
+    <img alt="All releases" src="https://img.shields.io/badge/all-releases-lightgrey">
+  </a>
+</p>
 
 ---
 
-## Быстрый старт / Quick start
+<details open>
+<summary>
+  <img src="https://sitebrush.com/04b158d78c93b65c714bb6256da221a4.png" width="22" alt="Linux">
+  <b>Linux</b> — recommended / рекомендуется
+</summary>
 
-### Linux install
+<br>
+
+| Arch | Direct download |
+|---|---|
+| amd64 | [chicha-ip-proxy-linux-amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64) |
+| arm64 | [chicha-ip-proxy-linux-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-arm64) |
 
 ```bash
-sudo curl -L https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64 -o /usr/local/bin/chicha-ip-proxy
+sudo curl -L -o /usr/local/bin/chicha-ip-proxy \
+  https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64
+
 sudo chmod +x /usr/local/bin/chicha-ip-proxy
 sudo chicha-ip-proxy
 ```
 
-### macOS / FreeBSD / OpenBSD
+</details>
+
+---
+
+<details>
+<summary>
+  <img src="https://sitebrush.com/fbad588e1b8c94b6b80708bc9917706e.png" width="22" alt="macOS">
+  <b>macOS</b>
+</summary>
+
+<br>
+
+| Arch | Direct download |
+|---|---|
+| Intel / amd64 | [chicha-ip-proxy-darwin-amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-amd64) |
+| Apple Silicon / arm64 | [chicha-ip-proxy-darwin-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64) |
 
 ```bash
-chmod +x chicha-ip-proxy-*
-sudo ./chicha-ip-proxy-*
+curl -L -o chicha-ip-proxy \
+  https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64
+
+chmod +x chicha-ip-proxy
+sudo ./chicha-ip-proxy
 ```
 
-### Windows
+</details>
 
-Download `.exe` and run it as Administrator.
+---
+
+<details>
+<summary>
+  <img src="https://sitebrush.com/66aab89d1af641ee0ae190f6b3ea4e09.png" width="22" alt="Windows">
+  <b>Windows</b>
+</summary>
+
+<br>
+
+| Arch | Direct download |
+|---|---|
+| amd64 | [chicha-ip-proxy-windows-amd64.exe](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-windows-amd64.exe) |
+| arm64 | [chicha-ip-proxy-windows-arm64.exe](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-windows-arm64.exe) |
+
+Run PowerShell as Administrator:
+
+```powershell
+$Dir = "$env:ProgramFiles\chicha-ip-proxy"
+$Exe = "$Dir\chicha-ip-proxy.exe"
+
+New-Item -ItemType Directory -Force -Path $Dir | Out-Null
+
+Invoke-WebRequest `
+  -Uri "https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-windows-amd64.exe" `
+  -OutFile $Exe
+
+& $Exe
+```
+
+</details>
+
+---
+
+<details>
+<summary>
+  <img src="https://sitebrush.com/c1ce8baa90a2ffd348069e69fa4fda93.png" width="22" alt="FreeBSD">
+  <b>FreeBSD</b>
+</summary>
+
+<br>
+
+| Arch | Direct download |
+|---|---|
+| amd64 | [chicha-ip-proxy-freebsd-amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-amd64) |
+| arm64 | [chicha-ip-proxy-freebsd-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-arm64) |
+
+```bash
+sudo fetch -o /usr/local/bin/chicha-ip-proxy \
+  https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-amd64
+
+sudo chmod +x /usr/local/bin/chicha-ip-proxy
+sudo chicha-ip-proxy
+```
+
+</details>
+
+---
+
+<details>
+<summary>
+  <img src="https://sitebrush.com/e3124d65b5feeb6af8ec8f882b167a35.png" width="22" alt="OpenBSD">
+  <b>OpenBSD</b>
+</summary>
+
+<br>
+
+| Arch | Direct download |
+|---|---|
+| amd64 | [chicha-ip-proxy-openbsd-amd64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-amd64) |
+| arm64 | [chicha-ip-proxy-openbsd-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-arm64) |
+
+```bash
+sudo ftp -o /usr/local/bin/chicha-ip-proxy \
+  https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-amd64
+
+sudo chmod +x /usr/local/bin/chicha-ip-proxy
+sudo chicha-ip-proxy
+```
+
+</details>
+
+---
+
+**All releases / Все релизы:**  
+[github.com/matveynator/chicha-ip-proxy/releases](https://github.com/matveynator/chicha-ip-proxy/releases/)
 
 ---
 
