@@ -8,6 +8,7 @@ TCP / UDP proxy
 ![UDP](https://img.shields.io/badge/UDP-proxy-green)
 ![Autostart](https://img.shields.io/badge/autostart-yes-orange)
 ![Config](https://img.shields.io/badge/config-not_required-lightgrey)
+[![cross-platform-release](https://github.com/matveynator/chicha-ip-proxy/actions/workflows/release.yml/badge.svg)](https://github.com/matveynator/chicha-ip-proxy/actions/workflows/release.yml)
 
 > **RU:** маленький TCP/UDP прокси портов.  
 > **EN:** small TCP/UDP port proxy.
