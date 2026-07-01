@@ -11,6 +11,11 @@
 ![UDP](https://img.shields.io/badge/UDP-proxy-green)
 ![Autostart](https://img.shields.io/badge/autostart-yes-green)
 ![Config](https://img.shields.io/badge/config-not_required-green) <br>
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/matveynator/chicha-ip-proxy.svg)](https://pkg.go.dev/github.com/matveynator/chicha-ip-proxy)
+[![Go Report Card](https://goreportcard.com/badge/github.com/matveynator/chicha-ip-proxy)](https://goreportcard.com/report/github.com/matveynator/chicha-ip-proxy)
+[![Coverage](https://codecov.io/gh/matveynator/chicha-ip-proxy/branch/master/graph/badge.svg)](https://codecov.io/gh/matveynator/chicha-ip-proxy)
+
 [![cross-platform-release](https://github.com/matveynator/chicha-ip-proxy/actions/workflows/release.yml/badge.svg)](https://github.com/matveynator/chicha-ip-proxy/actions/workflows/release.yml)
 
 
