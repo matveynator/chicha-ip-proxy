@@ -217,3 +217,39 @@ sudo chicha-ip-proxy -local=8080 -remote=203.0.113.10:80 -allow=198.51.100.7
 
 If `-allow` is not set, all clients are allowed.
 Если `-allow` не указан, разрешены все клиенты.
+
+
+Common TCP/UDP Proxy Problems Solved by chicha-ip-proxy
+
+These are the most common questions people ask on forums like Stack Overflow, Server Fault, Reddit, Habr, and Linux.org.ru.
+
+* I just need a simple TCP proxy.
+* I just need a simple UDP proxy.
+* I need to proxy both TCP and UDP.
+* Forward a TCP/UDP port to another server.
+* Expose a service through a VPS with a public IP.
+* Bypass NAT using a VPS.
+* Proxy game servers (Minecraft, CS, Rust, etc.).
+* Proxy VPN traffic (OpenVPN, WireGuard, etc.).
+* Proxy SSH, RDP, VNC, FTP, SMTP, IMAP, and other non-HTTP protocols.
+* Move a service to another server without changing the client configuration.
+* Replace nginx stream for simple port forwarding.
+* Avoid HAProxy for basic TCP/UDP proxying.
+* Replace socat, xinetd, or rinetd with a single tool.
+* Avoid writing iptables/nftables rules.
+* Start a proxy with a single command.
+* Run automatically after reboot.
+* Restrict access by IP address.
+* Manage dozens or hundreds of forwarded ports.
+* Use a solution without configuration files.
+* Use the same tool on Linux, Windows, macOS, FreeBSD, and OpenBSD.
+* Replace several networking utilities with one lightweight application.
+* Temporarily redirect traffic during migrations.
+* Hide the real backend behind a relay server.
+* Proxy raw TCP/UDP traffic instead of HTTP.
+
+In short, most forum questions come down to one simple request:
+
+“I just need to proxy a TCP or UDP port, but everyone recommends nginx, HAProxy, socat, xinetd, rinetd, iptables, WireGuard, or some other complex setup.”
+
+chicha-ip-proxy is designed specifically for this use case: a lightweight, cross-platform TCP/UDP port proxy with no configuration files, simple setup, automatic startup, and optional IP-based access control.
