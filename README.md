@@ -44,11 +44,7 @@ Open your platform and download the right build.
 | arm64 | [chicha-ip-proxy-linux-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-arm64) |
 
 ```bash
-sudo curl -L -o /usr/local/bin/chicha-ip-proxy \
-  https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64
-
-sudo chmod +x /usr/local/bin/chicha-ip-proxy
-sudo chicha-ip-proxy
+sudo curl -L -o /usr/local/bin/chicha-ip-proxy https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-linux-amd64; sudo chmod +x /usr/local/bin/chicha-ip-proxy; sudo chicha-ip-proxy;
 ```
 
 </details>
@@ -69,7 +65,7 @@ sudo chicha-ip-proxy
 | Apple Silicon / arm64 | [chicha-ip-proxy-darwin-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64) |
 
 ```bash
-sudo curl -L -o /usr/local/bin/chicha-ip-proxy https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64; sudo chmod +x /usr/local/bin/chicha-ip-proxy; sudo chicha-ip-proxy
+sudo curl -L -o /usr/local/bin/chicha-ip-proxy https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-darwin-arm64; sudo chmod +x /usr/local/bin/chicha-ip-proxy; sudo chicha-ip-proxy;
 ```
 
 </details>
@@ -122,11 +118,7 @@ Invoke-WebRequest `
 | arm64 | [chicha-ip-proxy-freebsd-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-arm64) |
 
 ```bash
-sudo fetch -o /usr/local/bin/chicha-ip-proxy \
-  https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-amd64
-
-sudo chmod +x /usr/local/bin/chicha-ip-proxy
-sudo chicha-ip-proxy
+sudo fetch -o /usr/local/bin/chicha-ip-proxy https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-freebsd-amd64; sudo chmod +x /usr/local/bin/chicha-ip-proxy; sudo chicha-ip-proxy;
 ```
 
 </details>
@@ -147,11 +139,7 @@ sudo chicha-ip-proxy
 | arm64 | [chicha-ip-proxy-openbsd-arm64](https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-arm64) |
 
 ```bash
-sudo ftp -o /usr/local/bin/chicha-ip-proxy \
-  https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-amd64
-
-sudo chmod +x /usr/local/bin/chicha-ip-proxy
-sudo chicha-ip-proxy
+sudo ftp -o /usr/local/bin/chicha-ip-proxy https://github.com/matveynator/chicha-ip-proxy/releases/latest/download/chicha-ip-proxy-openbsd-amd64; sudo chmod +x /usr/local/bin/chicha-ip-proxy; sudo chicha-ip-proxy;
 ```
 
 </details>
