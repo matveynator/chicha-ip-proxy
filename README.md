@@ -4,14 +4,14 @@
 
 ### TCP / UDP proxy
 
-<img width="42%" alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/0dc3b863-583f-41ea-b6a4-cfcf773a249c" />
+<img width="60%" alt="chicha-ip-proxy" src="https://github.com/user-attachments/assets/0dc3b863-583f-41ea-b6a4-cfcf773a249c" />
 
 <br>
 
-![TCP](https://img.shields.io/badge/TCP-proxy-blue)
+![TCP](https://img.shields.io/badge/TCP-proxy-green)
 ![UDP](https://img.shields.io/badge/UDP-proxy-green)
-![Autostart](https://img.shields.io/badge/autostart-yes-orange)
-![Config](https://img.shields.io/badge/config-not_required-lightgrey) <br>
+![Autostart](https://img.shields.io/badge/autostart-yes-green)
+![Config](https://img.shields.io/badge/config-not_required-green) <br>
 [![cross-platform-release](https://github.com/matveynator/chicha-ip-proxy/actions/workflows/release.yml/badge.svg)](https://github.com/matveynator/chicha-ip-proxy/actions/workflows/release.yml)
 
 <sub>
@@ -26,7 +26,7 @@
 ## Downloads / Скачать
 
 
-<details open>
+<details>
 <summary>
   <img width="42" alt="linux" src="https://github.com/user-attachments/assets/bf3141b6-4c93-4fd6-b2d1-421b79876dcb" />
   <b><big>Linux</big></b>
