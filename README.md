@@ -25,23 +25,8 @@
 
 ## Downloads / Скачать
 
-<sub>
-Выберите ОС и архитектуру. Команды установки — в одну строку и с кнопкой Copy.  
-Choose OS and architecture. Install commands are one-liners with Copy button.
-</sub>
 
-<p>
-  <a href="https://github.com/matveynator/chicha-ip-proxy/releases/latest">
-    <img alt="Latest release" src="https://img.shields.io/badge/latest-release-blue">
-  </a>
-  <a href="https://github.com/matveynator/chicha-ip-proxy/releases/">
-    <img alt="All releases" src="https://img.shields.io/badge/all-releases-lightgrey">
-  </a>
-</p>
-
----
-
-<details>
+<details open>
 <summary>
   <img width="42" alt="linux" src="https://github.com/user-attachments/assets/bf3141b6-4c93-4fd6-b2d1-421b79876dcb" />
   <b><big>Linux</big></b>
